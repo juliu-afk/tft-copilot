@@ -34,6 +34,7 @@ class DecisionEngine:
         book: UnitsBook,
         store=None,  # MatchStore | None
         hud: HUDBase | None = None,
+        deck_plan: tuple[str, ...] | None = None,
     ) -> None:
         self._rules = rules
         self._book = book
@@ -47,6 +48,8 @@ class DecisionEngine:
         # hp 历史窗口（trend 分量与断连推演用）
         self._hp_history: list[int] = []
         self._store_warned = False  # E7 Toast 只提示一次
+        # M4 卡组预案联动：局前选定的三卡（卡名元组），影响任务推荐口径
+        self._deck_plan = deck_plan or ()
 
     # ---------- 对局生命周期 ----------
 
@@ -118,6 +121,15 @@ class DecisionEngine:
             nxt.layers if nxt else None,
             " / ".join(nxt.options) if nxt else None,
         )
+
+        # 5.5 M4 卡组预案提示：开局限一次性（首个有效回合输出）
+        if self._deck_plan and snap.round_no <= 1:
+            from tft_copilot.decision.snapshot import Advice
+
+            plan_txt = " + ".join(self._deck_plan)
+            advices.append(
+                Advice("info", f"本局卡组预案：{plan_txt}", "deck_plan")
+            )
 
         # 6. 去重（同 source + 前 12 字相同视为重复）
         advices = self._dedup(advices)
