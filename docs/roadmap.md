@@ -8,7 +8,7 @@
 |---|---|---|---|---|
 | M1 数据就绪 | 第1周末 | 攻略 JSON 化（38任务变体表→rules_v18.6.json）+ 爬取脚本 + 首次数值库 | rules 覆盖 38 任务；数值库覆盖 60+ 弈子 | ✅ 3/3（M1-1 ✅ ba289f9 / M1-2 数值库122条目 ✅ eb7fe79 / M1-3 爬取通道由 jinchanchan.fun 替换掌盟，含断点续采） |
 | M2 感知可用 | 第3周末 | 模板冷启动（122官方头像）+ 场景分频调度 + 数字识别 | 弈子识别 ≥90%、数字 OCR ≥95%（合成帧口径；真机200帧移交M6） | ✅ d7165f8（合成帧 A1-A6 全绿：五卡5/5 score≥0.99、四数字全对、场景4/4、P95 134ms） |
-| M3 决策上线 | 第4-5周 | 层数进度 + 战力评分 + 对位预测(L0) + 影响推演 + HUD/Toast + 复盘回放 CLI | 四模块跑通，HUD 无崩溃，replay --match N 可用 | ⏳ |
+| M3 决策上线 | 第4-5周 | 层数进度 + 战力评分 + 对位预测(L0) + 影响推演 + HUD/Toast + 复盘回放 CLI | 四模块跑通，HUD 无崩溃，replay --match N 可用 | ✅（合成局口径：四模块 63 用例 + replay/stats/export 实测可用；单轮 0.7ms；semgrep 假阴性修复） |
 | M4 卡组参谋 | 第6周末 | 200+ 时间卡片 JSON + 组合推演器 | 推荐 ≤5s，Top5 合理性人审通过 | ⏳ |
 | M5 L1.5 引擎 | 第7周末 | 属性对比引擎 + 装备查表 + 站位粗算 | 三档胜率覆盖 8 成对局，判错率 ≤15%（四象限统计） | ⏓ |
 | M6 实战校准 | 第8-9周 | 实战 20-30 局 + 模板补全 + 权重校准 + 判错复盘 | 模板库 ≥180，战力权重完成首次回归重估 | ⏳ |
@@ -22,6 +22,7 @@
 | v0.3.0 | 2026-11-18 | M1-2 弈子数值库：units_18.6.json（122条目/65羁绊/六星级行/quality_flags）+ units_loader（三重校验+6查询接口）+ units-check CLI + fetch_units 爬取管线（断点续采）+ 头像模板122张 + 15测试（总35） |
 | v0.3.1 | 2026-11-18 | M1 复审加固：units_loader star 字段类型校验（+1 回归测试，总36） |
 | v0.4.0 | 2026-11-18 | M2 感知层：grabber/templates/scene/numbers/units_spotter/synth 六模块 + anchors.json 版本化 + perception-test CLI + 18测试（总54） |
+| v0.4.1 | 2026-11-18 | semgrep 红线规则修复：from-import 模式 PatternParseError + no-secrets metavariable-regex 失效（M2 假阴性），正向验证闭环 |
 
 ## 升级触发器（L1.5 → L1.75）
 

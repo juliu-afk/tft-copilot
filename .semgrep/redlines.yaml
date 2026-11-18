@@ -1,28 +1,20 @@
 rules:
   # 规则组1：输入模拟红线
   - id: tft-redline-input
-    patterns:
-      - pattern: |
-          import pyautogui
-      - pattern: |
-          from pyautogui import ...
-      - pattern: |
-          import pynput
-      - pattern: |
-          from pynput import ...
-      - pattern: |
-          ctypes.windll.user32.SendInput(...)
-      - pattern: |
-          ctypes.windll.user32.mouse_event(...)
-      - pattern: |
-          ctypes.windll.user32.keybd_event(...)
-      - pattern: |
-          ctypes.windll.user32.PostMessageW(...)
-      - pattern: |
-          ctypes.windll.user32.SendMessageW(...)
     paths:
       include:
         - tft_copilot/
+    patterns:
+      - pattern-either:
+          - pattern: import pyautogui
+          - pattern: from pyautogui import $X
+          - pattern: import pynput
+          - pattern: from pynput import $X
+          - pattern: ctypes.windll.user32.SendInput(...)
+          - pattern: ctypes.windll.user32.mouse_event(...)
+          - pattern: ctypes.windll.user32.keybd_event(...)
+          - pattern: ctypes.windll.user32.PostMessageW(...)
+          - pattern: ctypes.windll.user32.SendMessageW(...)
     message: >
       红线1违规：输入模拟 API。本项目零输入模拟，不代点、不代拖、不代D牌。
       感知层永远只做"截屏像素"，所有导航操作（Tab/E）由人完成。
@@ -31,24 +23,18 @@ rules:
 
   # 规则组2：进程读取红线
   - id: tft-redline-process
-    patterns:
-      - pattern: |
-          ctypes.windll.kernel32.ReadProcessMemory(...)
-      - pattern: |
-          ctypes.windll.kernel32.OpenProcess(...)
-      - pattern: |
-          import win32api
-      - pattern: |
-          import win32process
-      - pattern: |
-          import pymem
-      - pattern: |
-          import scapy
-      - pattern: |
-          from scapy import ...
     paths:
       include:
         - tft_copilot/
+    patterns:
+      - pattern-either:
+          - pattern: ctypes.windll.kernel32.ReadProcessMemory(...)
+          - pattern: ctypes.windll.kernel32.OpenProcess(...)
+          - pattern: import win32api
+          - pattern: import win32process
+          - pattern: import pymem
+          - pattern: import scapy
+          - pattern: from scapy import $X
     message: >
       红线2违规：进程读取/网络抓包。本项目不读游戏内存、句柄、网络包。
       感知边界永远停留在屏幕像素。
@@ -57,48 +43,37 @@ rules:
 
   # 规则组3：联网外传红线
   - id: tft-redline-network
-    patterns:
-      - pattern: |
-          import requests
-      - pattern: |
-          from requests import ...
-      - pattern: |
-          import httpx
-      - pattern: |
-          from httpx import ...
-      - pattern: |
-          import aiohttp
-      - pattern: |
-          from aiohttp import ...
-      - pattern: |
-          import socket
-      - pattern: |
-          $S = socket.socket(...)
     paths:
       include:
         - tft_copilot/
-      exclude:
-        - tft_copilot/tools/
+    patterns:
+      - pattern-either:
+          - pattern: import requests
+          - pattern: from requests import $X
+          - pattern: import httpx
+          - pattern: from httpx import $X
+          - pattern: import aiohttp
+          - pattern: from aiohttp import $X
+          - pattern: import socket
+          - pattern: $S = socket.socket(...)
     message: >
       红线3违规：运行时网络请求。主包零联网，requests/httpx/aiohttp/socket
-      只允许出现在 tools/ 开发期脚本。所有计算本地完成，数据不出本地 SQLite。
+      只允许出现在 tools/ 开发期脚本（本规则 include 范围即主包）。
+      所有计算本地完成，数据不出本地 SQLite。
     severity: ERROR
     languages: [python]
 
   # 规则组4：知识库版本化铁律
   - id: tft-versioned-knowledge
-    patterns:
-      - pattern: |
-          open("rules.json")
-      - pattern: |
-          open('rules.json')
-      - pattern: |
-          load("rules.json")
-      - pattern: |
-          $F = "...rules.json"
     paths:
       include:
         - tft_copilot/
+    patterns:
+      - pattern-either:
+          - pattern: open("rules.json")
+          - pattern: open('rules.json')
+          - pattern: load("rules.json")
+          - pattern: $F = "...rules.json"
     message: >
       版本化铁律违规：知识库文件必须带版本号（如 rules_18.6.json，禁止裸 rules.json），
       且 meta.patch 必须与文件名版本一致（加载器三重校验强制）。
@@ -108,16 +83,15 @@ rules:
 
   # 规则组5：敏感信息
   - id: tft-no-secrets
-    patterns:
-      - pattern: |
-          $KEY = "..."
-    metavariable-regex:
-      - metavariable: $KEY
-        regex: (?i)(api[_-]?key|secret|token|password)
     paths:
       include:
         - tft_copilot/
         - tools/
+    patterns:
+      - pattern: $KEY = "..."
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: (?i)^(api[_-]?key|secret|token|password)[A-Za-z0-9_-]*$
     message: 疑似硬编码密钥，请使用环境变量。
     severity: ERROR
     languages: [python]
