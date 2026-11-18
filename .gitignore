@@ -25,3 +25,7 @@ data/screenshots/
 # OS
 Thumbs.db
 .DS_Store
+
+# M1-2 抓取产物（本地灾备，不进库）
+data/units/raw_html/
+data/units/fetch_log.txt
