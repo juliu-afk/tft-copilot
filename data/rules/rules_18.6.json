@@ -1,0 +1,624 @@
+{
+  "meta": {
+    "patch": "18.6",
+    "mode": "daju_dali",
+    "schema_version": 1,
+    "sources": ["官方更新公告18.6", "官方钥匙图鉴", "DataTFT", "7724/川川云/电玩帮"],
+    "generated_at": "2026-11-18",
+    "note": "数值以游戏内实际为准；层数为累积里程碑不消耗"
+  },
+  "tasks": [
+    {
+      "id": "star_qiyana",
+      "name": "登场三星奇亚娜",
+      "category": "milestone",
+      "tier": "good",
+      "tier_note": "T0+ 全路线：任务奖励+秩序钥匙解锁条件二合一，任何阶段刷出都必拿",
+      "routes": ["win_streak", "lose_streak", "steady", "blood_for_layers"],
+      "variants": [
+        {"stage": 2, "requirement": "三星奇亚娜", "layers": 150},
+        {"stage": 3, "requirement": "三星奇亚娜", "layers": 150},
+        {"stage": 4, "requirement": "三星奇亚娜", "layers": 200},
+        {"stage": 5, "requirement": "三星奇亚娜", "layers": 200},
+        {"stage": 6, "requirement": "三星奇亚娜", "layers": 200}
+      ]
+    },
+    {
+      "id": "hp_first_below_30",
+      "name": "血量首次低于30",
+      "category": "risk",
+      "tier": "good",
+      "tier_note": "仅冒险举动局：掉血=进度，普通局掉血纯亏",
+      "routes": ["blood_for_layers"],
+      "variants": [
+        {"stage": 2, "requirement": "血量首次<30", "layers": 400},
+        {"stage": 3, "requirement": "血量首次<30", "layers": 400}
+      ]
+    },
+    {
+      "id": "refresh_easy",
+      "name": "刷新商店·简单",
+      "category": "economy",
+      "tier": "good",
+      "tier_note": "全路线顺手做：刷店本来就是运营动作",
+      "routes": ["win_streak", "lose_streak", "steady", "blood_for_layers"],
+      "variants": [
+        {"stage": 2, "requirement": "5次", "layers": 40},
+        {"stage": 3, "requirement": "6次", "layers": 40},
+        {"stage": 4, "requirement": "8次", "layers": 30},
+        {"stage": 5, "requirement": "8次", "layers": 30},
+        {"stage": 6, "requirement": "8次", "layers": 30}
+      ]
+    },
+    {
+      "id": "refresh_medium",
+      "name": "刷新商店·中等",
+      "category": "economy",
+      "tier": "good",
+      "tier_note": "平稳流首选；阶段2~3锁最赚（后期贬值）",
+      "routes": ["steady", "win_streak", "lose_streak"],
+      "variants": [
+        {"stage": 2, "requirement": "10次", "layers": 90},
+        {"stage": 3, "requirement": "12次", "layers": 90},
+        {"stage": 4, "requirement": "16次", "layers": 50},
+        {"stage": 5, "requirement": "16次", "layers": 50},
+        {"stage": 6, "requirement": "16次", "layers": 50}
+      ]
+    },
+    {
+      "id": "refresh_hard",
+      "name": "刷新商店·困难",
+      "category": "economy",
+      "tier": "warn",
+      "tier_note": "仅D牌海克斯局：免费刷新才划算",
+      "routes": [],
+      "variants": [
+        {"stage": 2, "requirement": "15次", "layers": 135},
+        {"stage": 3, "requirement": "18次", "layers": 135},
+        {"stage": 4, "requirement": "24次", "layers": 70},
+        {"stage": 5, "requirement": "24次", "layers": 70},
+        {"stage": 6, "requirement": "24次", "layers": 70}
+      ]
+    },
+    {
+      "id": "buy_xp_easy",
+      "name": "购买经验·简单",
+      "category": "economy",
+      "tier": "warn",
+      "tier_note": "快节奏运营局顺手做",
+      "routes": [],
+      "variants": [
+        {"stage": 2, "requirement": "12XP", "layers": 40},
+        {"stage": 3, "requirement": "20XP", "layers": 40},
+        {"stage": 4, "requirement": "24XP", "layers": 40},
+        {"stage": 5, "requirement": "24XP", "layers": 40},
+        {"stage": 6, "requirement": "24XP", "layers": 40}
+      ]
+    },
+    {
+      "id": "buy_xp_medium",
+      "name": "购买经验·中等",
+      "category": "economy",
+      "tier": "warn",
+      "tier_note": "同上，层数偏低",
+      "routes": [],
+      "variants": [
+        {"stage": 2, "requirement": "24XP", "layers": 50},
+        {"stage": 3, "requirement": "40XP", "layers": 50},
+        {"stage": 4, "requirement": "48XP", "layers": 50},
+        {"stage": 5, "requirement": "48XP", "layers": 50},
+        {"stage": 6, "requirement": "48XP", "layers": 50}
+      ]
+    },
+    {
+      "id": "buy_xp_hard",
+      "name": "购买经验·困难",
+      "category": "economy",
+      "tier": "warn",
+      "tier_note": "经济局阶段4+再锁（前期金币要留给追星）",
+      "routes": ["steady"],
+      "variants": [
+        {"stage": 2, "requirement": "48XP", "layers": 125},
+        {"stage": 3, "requirement": "68XP", "layers": 125},
+        {"stage": 4, "requirement": "80XP", "layers": 100},
+        {"stage": 5, "requirement": "80XP", "layers": 100},
+        {"stage": 6, "requirement": "80XP", "layers": 100}
+      ]
+    },
+    {
+      "id": "unit_death",
+      "name": "己方单位阵亡",
+      "category": "combat",
+      "tier": "good",
+      "tier_note": "连败流专属：连着输自然完成，越晚做层数越高",
+      "routes": ["lose_streak"],
+      "variants": [
+        {"stage": 2, "requirement": "10个", "layers": 105},
+        {"stage": 3, "requirement": "15个", "layers": 125},
+        {"stage": 4, "requirement": "20个", "layers": 175},
+        {"stage": 5, "requirement": "20个", "layers": 225},
+        {"stage": 6, "requirement": "25个", "layers": 250}
+      ]
+    },
+    {
+      "id": "kill_enemies",
+      "name": "击杀敌人",
+      "category": "combat",
+      "tier": "good",
+      "tier_note": "连胜流/三星奇亚娜局白送：击杀返金+击杀任务双吃",
+      "routes": ["win_streak", "lose_streak"],
+      "variants": [
+        {"stage": 2, "requirement": "10个", "layers": 70},
+        {"stage": 3, "requirement": "15个", "layers": 90},
+        {"stage": 4, "requirement": "20个", "layers": 110},
+        {"stage": 5, "requirement": "20个", "layers": 140},
+        {"stage": 6, "requirement": "25个", "layers": 150}
+      ]
+    },
+    {
+      "id": "earn_interest",
+      "name": "赚取利息",
+      "category": "economy",
+      "tier": "good",
+      "tier_note": "全路线可做：存钱就是运营，后程层数更高",
+      "routes": ["win_streak", "lose_streak", "steady"],
+      "variants": [
+        {"stage": 2, "requirement": "6金", "layers": 70},
+        {"stage": 3, "requirement": "14金", "layers": 90},
+        {"stage": 4, "requirement": "20金", "layers": 120},
+        {"stage": 5, "requirement": "20金", "layers": 160},
+        {"stage": 6, "requirement": "20金", "layers": 200}
+      ]
+    },
+    {
+      "id": "hold_gold",
+      "name": "战斗结束持币≥X",
+      "category": "economy",
+      "tier": "good",
+      "tier_note": "连胜流后期：3-5连胜攒钱阶段2锁最好",
+      "routes": ["win_streak", "steady"],
+      "variants": [
+        {"stage": 2, "requirement": "持币≥60", "layers": 60},
+        {"stage": 3, "requirement": "持币≥80", "layers": 75},
+        {"stage": 4, "requirement": "持币≥100", "layers": 90},
+        {"stage": 5, "requirement": "持币≥100", "layers": 140},
+        {"stage": 6, "requirement": "持币≥100", "layers": 180}
+      ]
+    },
+    {
+      "id": "lose_3",
+      "name": "连续输3场",
+      "category": "streak",
+      "tier": "good",
+      "tier_note": "连败流开局锁：低质量期白送层数",
+      "routes": ["lose_streak"],
+      "variants": [
+        {"stage": 2, "requirement": "连输3场", "layers": 120},
+        {"stage": 3, "requirement": "连输3场", "layers": 200},
+        {"stage": 4, "requirement": "连输3场", "layers": 200},
+        {"stage": 5, "requirement": "连输3场", "layers": 300},
+        {"stage": 6, "requirement": "连输3场", "layers": 300}
+      ]
+    },
+    {
+      "id": "lose_4",
+      "name": "连续输4场",
+      "category": "streak",
+      "tier": "good",
+      "tier_note": "连败流：注意血量管理，输完就转型",
+      "routes": ["lose_streak"],
+      "variants": [
+        {"stage": 2, "requirement": "连输4场", "layers": 150},
+        {"stage": 3, "requirement": "连输4场", "layers": 225},
+        {"stage": 4, "requirement": "连输4场", "layers": 300},
+        {"stage": 5, "requirement": "连输4场", "layers": 400}
+      ]
+    },
+    {
+      "id": "lose_7",
+      "name": "连续输7场",
+      "category": "streak",
+      "tier": "warn",
+      "tier_note": "天胡连败局：血量充足才敢锁，断掉血亏",
+      "routes": ["lose_streak"],
+      "variants": [
+        {"stage": 2, "requirement": "连输7场", "layers": 275},
+        {"stage": 3, "requirement": "连输7场", "layers": 400},
+        {"stage": 4, "requirement": "连输7场", "layers": 500},
+        {"stage": 5, "requirement": "连输7场", "layers": 700}
+      ]
+    },
+    {
+      "id": "lose_10",
+      "name": "连续输10场",
+      "category": "streak",
+      "tier": "warn",
+      "tier_note": "连败流专属：中途断连败=白锁任务",
+      "routes": ["lose_streak"],
+      "variants": [
+        {"stage": 2, "requirement": "连输10场", "layers": 550}
+      ]
+    },
+    {
+      "id": "win_3",
+      "name": "连续赢3场",
+      "category": "streak",
+      "tier": "good",
+      "tier_note": "连胜流专属：越晚锁层数越高，前期先用击杀/利息",
+      "routes": ["win_streak"],
+      "variants": [
+        {"stage": 2, "requirement": "连赢3场", "layers": 100},
+        {"stage": 3, "requirement": "连赢3场", "layers": 125},
+        {"stage": 4, "requirement": "连赢3场", "layers": 150},
+        {"stage": 5, "requirement": "连赢3场", "layers": 175},
+        {"stage": 6, "requirement": "连赢3场", "layers": 200}
+      ]
+    },
+    {
+      "id": "win_7_pvp",
+      "name": "赢得7场玩家对战",
+      "category": "streak",
+      "tier": "warn",
+      "tier_note": "顶级质量局：需连胜锁血成型后才考虑",
+      "routes": [],
+      "variants": [
+        {"stage": 5, "requirement": "赢7场PVP", "layers": 1000}
+      ]
+    },
+    {
+      "id": "armor_reach",
+      "name": "护甲达标（以绪弈子）",
+      "category": "milestone",
+      "tier": "warn",
+      "tier_note": "有石像鬼板甲秒完成：板甲是本阵容核心装",
+      "routes": [],
+      "variants": [
+        {"stage": 2, "requirement": "护甲100", "layers": 20},
+        {"stage": 3, "requirement": "护甲125", "layers": 30},
+        {"stage": 4, "requirement": "护甲150", "layers": 40},
+        {"stage": 5, "requirement": "护甲150", "layers": 50},
+        {"stage": 6, "requirement": "护甲150", "layers": 50}
+      ]
+    },
+    {
+      "id": "mr_reach",
+      "name": "魔抗达标（以绪弈子）",
+      "category": "milestone",
+      "tier": "warn",
+      "tier_note": "余装才做：防御装优先级低于板甲",
+      "routes": [],
+      "variants": [
+        {"stage": 2, "requirement": "魔抗100", "layers": 20},
+        {"stage": 3, "requirement": "魔抗125", "layers": 30},
+        {"stage": 4, "requirement": "魔抗150", "layers": 40},
+        {"stage": 5, "requirement": "魔抗150", "layers": 50},
+        {"stage": 6, "requirement": "魔抗150", "layers": 50}
+      ]
+    },
+    {
+      "id": "block_damage",
+      "name": "单场格挡X伤害",
+      "category": "combat",
+      "tier": "warn",
+      "tier_note": "自然达成型：岩宝/满装妮蔻不用特意做",
+      "routes": [],
+      "variants": [
+        {"stage": 2, "requirement": "格挡2000", "layers": 20},
+        {"stage": 3, "requirement": "格挡4000", "layers": 20},
+        {"stage": 4, "requirement": "格挡6000", "layers": 20},
+        {"stage": 5, "requirement": "格挡9000", "layers": 30},
+        {"stage": 6, "requirement": "格挡9000", "layers": 30}
+      ]
+    },
+    {
+      "id": "deal_damage",
+      "name": "单场造成X伤害",
+      "category": "combat",
+      "tier": "warn",
+      "tier_note": "自然达成型：三星奇亚娜/岩宝自动完成",
+      "routes": [],
+      "variants": [
+        {"stage": 2, "requirement": "造成1500", "layers": 20},
+        {"stage": 3, "requirement": "造成3000", "layers": 30},
+        {"stage": 4, "requirement": "造成4500", "layers": 40},
+        {"stage": 5, "requirement": "造成7500", "layers": 40},
+        {"stage": 6, "requirement": "造成7500", "layers": 40}
+      ]
+    },
+    {
+      "id": "neeko_survive_15s",
+      "name": "妮蔻存活15秒",
+      "category": "milestone",
+      "tier": "warn",
+      "tier_note": "有肉前排才拿：妮蔻带板甲站前排顺手做",
+      "routes": [],
+      "variants": [
+        {"stage": 2, "requirement": "存活15秒", "layers": 20},
+        {"stage": 3, "requirement": "存活15秒", "layers": 30},
+        {"stage": 4, "requirement": "存活15秒", "layers": 40},
+        {"stage": 5, "requirement": "存活15秒", "layers": 50},
+        {"stage": 6, "requirement": "存活15秒", "layers": 50}
+      ]
+    },
+    {
+      "id": "star_neeko_2",
+      "name": "登场2星妮蔻",
+      "category": "milestone",
+      "tier": "warn",
+      "tier_note": "奖励少：但2星妮蔻是解锁豹女的前置，顺手做",
+      "routes": [],
+      "variants": [
+        {"stage": 2, "requirement": "2星妮蔻", "layers": 40},
+        {"stage": 3, "requirement": "2星妮蔻", "layers": 30},
+        {"stage": 4, "requirement": "2星妮蔻", "layers": 30},
+        {"stage": 5, "requirement": "2星妮蔻", "layers": 30},
+        {"stage": 6, "requirement": "2星妮蔻", "layers": 30}
+      ]
+    },
+    {
+      "id": "star_milio_2",
+      "name": "登场2星米利欧",
+      "category": "milestone",
+      "tier": "warn",
+      "tier_note": "奖励少",
+      "routes": [],
+      "variants": [
+        {"stage": 2, "requirement": "2星米利欧", "layers": 50},
+        {"stage": 3, "requirement": "2星米利欧", "layers": 40},
+        {"stage": 4, "requirement": "2星米利欧", "layers": 40},
+        {"stage": 5, "requirement": "2星米利欧", "layers": 40},
+        {"stage": 6, "requirement": "2星米利欧", "layers": 40}
+      ]
+    },
+    {
+      "id": "star_skarner_2",
+      "name": "登场2星斯卡纳",
+      "category": "milestone",
+      "tier": "warn",
+      "tier_note": "阶段2解锁蝎子后顺手做（当时是100层）",
+      "routes": [],
+      "variants": [
+        {"stage": 2, "requirement": "2星斯卡纳", "layers": 100},
+        {"stage": 3, "requirement": "2星斯卡纳", "layers": 40},
+        {"stage": 4, "requirement": "2星斯卡纳", "layers": 40},
+        {"stage": 5, "requirement": "2星斯卡纳", "layers": 40},
+        {"stage": 6, "requirement": "2星斯卡纳", "layers": 40}
+      ]
+    },
+    {
+      "id": "bench_empty_4",
+      "name": "备战席空置4回合",
+      "category": "bench",
+      "tier": "good",
+      "tier_note": "纷乱头脑局必拿：卖卡运营天然兼容",
+      "routes": ["win_streak", "steady"],
+      "variants": [
+        {"stage": 2, "requirement": "空置4回合", "layers": 100},
+        {"stage": 3, "requirement": "空置4回合", "layers": 100},
+        {"stage": 4, "requirement": "空置4回合", "layers": 125},
+        {"stage": 5, "requirement": "空置4回合", "layers": 150},
+        {"stage": 6, "requirement": "空置4回合", "layers": 150}
+      ]
+    },
+    {
+      "id": "bench_full_4",
+      "name": "备战席满员4回合",
+      "category": "bench",
+      "tier": "warn",
+      "tier_note": "与追星抢卡冲突：留卡不卖才完成",
+      "routes": [],
+      "variants": [
+        {"stage": 2, "requirement": "满员4回合", "layers": 100},
+        {"stage": 3, "requirement": "满员4回合", "layers": 100},
+        {"stage": 4, "requirement": "满员4回合", "layers": 125},
+        {"stage": 5, "requirement": "满员4回合", "layers": 150},
+        {"stage": 6, "requirement": "满员4回合", "layers": 150}
+      ]
+    },
+    {
+      "id": "bench_no_item_3",
+      "name": "备战区无装备3回合",
+      "category": "bench",
+      "tier": "warn",
+      "tier_note": "与装备运营冲突：散件别捏手里",
+      "routes": [],
+      "variants": [
+        {"stage": 2, "requirement": "无装备3回合", "layers": 80},
+        {"stage": 3, "requirement": "无装备3回合", "layers": 80},
+        {"stage": 4, "requirement": "无装备3回合", "layers": 100},
+        {"stage": 5, "requirement": "无装备3回合", "layers": 120},
+        {"stage": 6, "requirement": "无装备3回合", "layers": 120}
+      ]
+    },
+    {
+      "id": "zero_gold_3",
+      "name": "以0金币结束3回合",
+      "category": "economy",
+      "tier": "warn",
+      "tier_note": "花钱类：搜牌节奏局顺手做",
+      "routes": [],
+      "variants": [
+        {"stage": 3, "requirement": "0金结束3回合", "layers": 90},
+        {"stage": 4, "requirement": "0金结束3回合", "layers": 90},
+        {"stage": 5, "requirement": "0金结束3回合", "layers": 90},
+        {"stage": 6, "requirement": "0金结束3回合", "layers": 90}
+      ]
+    },
+    {
+      "id": "qiyana_kill_3",
+      "name": "奇亚娜单场参与击杀3次",
+      "category": "combat",
+      "tier": "warn",
+      "tier_note": "三星奇亚娜局顺手做",
+      "routes": [],
+      "variants": [
+        {"stage": 2, "requirement": "击杀3次", "layers": 20},
+        {"stage": 3, "requirement": "击杀3次", "layers": 40}
+      ]
+    },
+    {
+      "id": "win_loss_alt_4",
+      "name": "一胜一败交替4场",
+      "category": "streak",
+      "tier": "bad",
+      "tier_note": "避选：连胜连败两条路线都被打乱",
+      "routes": [],
+      "variants": [
+        {"stage": 2, "requirement": "交替4场", "layers": 200},
+        {"stage": 3, "requirement": "交替4场", "layers": 280},
+        {"stage": 4, "requirement": "交替4场", "layers": 360}
+      ]
+    },
+    {
+      "id": "hp_below_5",
+      "name": "血量低于5",
+      "category": "risk",
+      "tier": "bad",
+      "tier_note": "高风险：仅科技钥匙锁血局可反打",
+      "routes": [],
+      "variants": [
+        {"stage": 2, "requirement": "血量<5", "layers": 300},
+        {"stage": 3, "requirement": "血量<5", "layers": 300},
+        {"stage": 4, "requirement": "血量<5", "layers": 300},
+        {"stage": 5, "requirement": "血量<5", "layers": 300},
+        {"stage": 6, "requirement": "血量<5", "layers": 300}
+      ]
+    },
+    {
+      "id": "exactly_1_hp",
+      "name": "恰好1点生命值",
+      "category": "risk",
+      "tier": "warn",
+      "tier_note": "配合科技钥匙锁血机制反打（先保命再贪层）",
+      "routes": ["blood_for_layers"],
+      "variants": [
+        {"stage": 2, "requirement": "恰好1血", "layers": 700},
+        {"stage": 3, "requirement": "恰好1血", "layers": 700},
+        {"stage": 4, "requirement": "恰好1血", "layers": 700},
+        {"stage": 5, "requirement": "恰好1血", "layers": 700},
+        {"stage": 6, "requirement": "恰好1血", "layers": 700}
+      ]
+    },
+    {
+      "id": "exact_3ixt_17",
+      "name": "登场恰好3以绪打17场",
+      "category": "milestone",
+      "tier": "bad",
+      "tier_note": "避选：2-1就得开3以绪且不能多上弈子",
+      "routes": [],
+      "variants": [
+        {"stage": 2, "requirement": "恰好3以绪×17场", "layers": 500},
+        {"stage": 3, "requirement": "恰好3以绪×17场", "layers": 500},
+        {"stage": 4, "requirement": "恰好3以绪×17场", "layers": 500},
+        {"stage": 5, "requirement": "恰好3以绪×17场", "layers": 500},
+        {"stage": 6, "requirement": "恰好3以绪×17场", "layers": 500}
+      ]
+    },
+    {
+      "id": "win_2_only_1_alive",
+      "name": "赢2场且仅1单位存活",
+      "category": "combat",
+      "tier": "bad",
+      "tier_note": "几乎做不了：需三星五费级质量单C",
+      "routes": [],
+      "variants": [
+        {"stage": 3, "requirement": "赢2场仅1存活", "layers": 500},
+        {"stage": 4, "requirement": "赢2场仅1存活", "layers": 500},
+        {"stage": 5, "requirement": "赢2场仅1存活", "layers": 500},
+        {"stage": 6, "requirement": "赢2场仅1存活", "layers": 500}
+      ]
+    },
+    {
+      "id": "reach_lv9",
+      "name": "达到9级",
+      "category": "milestone",
+      "tier": "warn",
+      "tier_note": "仅经济局可拼：连胜流/连败流都别碰（抢追星钱）",
+      "routes": ["steady"],
+      "variants": [
+        {"stage": 3, "requirement": "达到9级", "layers": 400}
+      ]
+    },
+    {
+      "id": "rock_survive_5",
+      "name": "岩宝存活5场",
+      "category": "milestone",
+      "tier": "good",
+      "tier_note": "解锁岩宝后白送：岩宝免疫控制很难死",
+      "routes": [],
+      "variants": [
+        {"stage": 4, "requirement": "存活5场", "layers": 300},
+        {"stage": 5, "requirement": "存活5场", "layers": 300},
+        {"stage": 6, "requirement": "存活5场", "layers": 300}
+      ]
+    }
+  ],
+  "rewards": [
+    {"layers": 1, "options": ["1金币", "随机一费卡"], "quality": "weak", "note": "聊胜于无，前几层自动触发不用管"},
+    {"layers": 25, "options": ["2金币", "随机二费卡"], "quality": "weak", "note": "凑层数路过，二费卡可以留追星"},
+    {"layers": 50, "options": ["4金币", "二费卡×2", "一费+三费"], "quality": "weak", "note": "一般，缺经济选4金币"},
+    {"layers": 80, "options": ["二费×3", "1金+次级复制器", "2金+2星二费"], "quality": "weak", "note": "次级复制器可追星，其余一般"},
+    {"layers": 120, "options": ["随机散件", "4金+三费×2"], "quality": "weak", "note": "一般，前期缺卡选B"},
+    {"layers": 150, "options": ["4金+散件锻造器", "6金+三费×3"], "quality": "weak", "note": "一般"},
+    {"layers": 200, "options": ["2金+散件", "三费×3+次级复制器×2", "3金+偷偷", "散件×2"], "quality": "normal", "note": "开始有点肉了，B项追星好用"},
+    {"layers": 250, "options": ["80%: 6金币", "20%: 金铲铲/金锅锅+散件+重铸器"], "quality": "normal", "note": "赌锅铲档——玩大羁绊时这20%很值，平时当6金币"},
+    {"layers": 300, "options": ["14金+4费×3", "2金+神器锻造器", "12金+成装锻造器+重铸器"], "quality": "strong", "note": "强度≈金色海克斯；缺战力拿神器，缺经济拿A"},
+    {"layers": 350, "options": ["光明锻造", "偷偷×2+拆卸器", "成装", "12金+4费×3+复制器"], "quality": "strong", "note": "D项（12金+4费×3+大复制器）最稳"},
+    {"layers": 400, "options": ["散件+金铲铲冠冕", "光明装+重铸器", "12金+成装×2+拆卸器"], "quality": "strong", "note": "A项冠冕直接加羁绊数，稳赚不亏的档位"},
+    {"layers": 450, "options": ["8金+散件×5", "3星三费+次级复制器×6", "五费+散件×3+复制器"], "quality": "strong", "note": "C项五费+复制器，追星素材拉满"},
+    {"layers": 500, "options": ["15金+成装×3", "成装+冠冕+拆卸器"], "quality": "strong", "note": "关键档：同时解锁7费岩宝，怎么选都不亏"},
+    {"layers": 550, "options": ["次级复制器×7+复制器×2+冠冕", "30金+冠冕+光明偷偷"], "quality": "strong", "note": "A项=2个大妮蔻素材，追三星五费/二星岩宝锁血"},
+    {"layers": 625, "options": ["10金+光明装+冠冕×2", "成装×2+杰作升级×3", "70金+光明×2"], "quality": "strong", "note": "必出光明装，A项有机会玩双冠冕，战力跳档"},
+    {"layers": 700, "options": ["复制器+神器锻造×2+光明×2", "30金+2星五费+锻造器+冠冕"], "quality": "strong", "note": "都很好，B项直接白嫖二星五费"},
+    {"layers": 800, "options": ["50金+光明×2+冠冕×2", "145金+全装备升光明", "高费卡+锅铲+散件×2"], "quality": "strong", "note": "A很香但50%概率；质量不够锁不住血时选B保经济，避开C"},
+    {"layers": 900, "options": ["180金+全装备升光明", "60金+光明×3+冠冕×2", "100金+复制器×2"], "quality": "strong", "note": "钱多也有大妮蔻，追三星五费的好档"},
+    {"layers": 1000, "options": ["三星五费×1+拆卸器"], "quality": "jackpot", "note": "多数对局的理想终点"},
+    {"layers": 1250, "options": ["三星五费×2+拆卸器"], "quality": "jackpot", "note": "终极大奖，吃鸡基本稳了"}
+  ],
+  "keys": [
+    {
+      "id": "order_key",
+      "name": "秩序钥匙",
+      "unlock": "三星奇亚娜 + 完成4个以绪塔尔任务",
+      "effects": ["太阳碎片+50%", "携带者击败敌人获得2金币"],
+      "strategy": "3阶段解锁，全程经济引擎；三星奇亚娜自戴=击杀返金+任务击杀双吃"
+    },
+    {
+      "id": "tech_key",
+      "name": "科技钥匙",
+      "unlock": "登场14星级以绪塔尔弈子 + 达到10级",
+      "effects": ["每回合+400碎片（输赢都有）", "首次淘汰时锁血1点", "队伍+500生命"],
+      "strategy": "后期解锁（≈二星岩宝成型后）；每回合400层+锁血双保险，配合恰好1血任务可再吃700层"
+    }
+  ],
+  "routes": [
+    {
+      "id": "lose_streak",
+      "name": "精致连败流",
+      "condition": "开局牌烂、质量低、血量>70",
+      "stage_23_tasks": ["lose_3", "lose_4", "unit_death"],
+      "stage_45_tasks": ["unit_death", "kill_enemies", "earn_interest"]
+    },
+    {
+      "id": "win_streak",
+      "name": "连胜压制流",
+      "condition": "开局顺、2星多、能赢",
+      "stage_23_tasks": ["win_3", "kill_enemies", "earn_interest"],
+      "stage_45_tasks": ["win_3", "hold_gold", "bench_empty_4"]
+    },
+    {
+      "id": "steady",
+      "name": "平稳过渡流",
+      "condition": "牌一般，赢输五五开",
+      "stage_23_tasks": ["refresh_medium", "bench_empty_4", "earn_interest"],
+      "stage_45_tasks": ["buy_xp_hard", "hold_gold", "reach_lv9"]
+    },
+    {
+      "id": "blood_for_layers",
+      "name": "血量换层流",
+      "condition": "2-1拿了冒险举动（掉血换资源）",
+      "stage_23_tasks": ["hp_first_below_30"],
+      "stage_45_tasks": ["hp_below_5", "exactly_1_hp"]
+    }
+  ]
+}

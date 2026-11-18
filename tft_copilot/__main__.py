@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """TFT Copilot 主包入口。
 
 三条红线（凌驾一切设计决策）：
@@ -7,12 +6,27 @@
 3. 零联网外传 —— 运行时零网络请求，数据不出本地 SQLite
 """
 
+from __future__ import annotations
 
-def main() -> None:
-    """CLI 入口（M1 里程碑后逐步实装）。"""
-    print("TFT Copilot v0.1.0 —— 机器补记忆，人补导航")
-    print("状态：脚手架阶段，见 docs/roadmap.md")
+import argparse
+import sys
+
+from tft_copilot.rules_check import add_subparser as add_rules_check
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="tft-copilot", description="金铲铲大橘大利本地只读副官")
+    sub = parser.add_subparsers(dest="command")
+
+    add_rules_check(sub)
+
+    parsed = parser.parse_args(argv)
+    if getattr(parsed, "func", None) is None:
+        parser.print_help()
+        return 0 if parsed.command is None else 1
+
+    return parsed.func(parsed)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
