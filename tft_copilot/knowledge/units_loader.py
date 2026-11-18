@@ -97,6 +97,10 @@ def _parse_unit(raw: dict[str, Any]) -> Unit:
     for i, s in enumerate(raw.get("stars", []), 1):
         star_no = s.get("star", i)
         _require(
+            isinstance(star_no, int) and not isinstance(star_no, bool) and star_no >= 1,
+            f"[{raw['id']}] 星级行 star 非法: {star_no!r}（须 ≥1 整数）",
+        )
+        _require(
             all(isinstance(s.get(k), int) and s[k] >= 0 for k in ("hp", "ad", "ar", "mr")),
             f"[{raw['id']}] 星级行 {star_no} 五维不完整（hp/ad/ar/mr 必须非负整数）",
         )

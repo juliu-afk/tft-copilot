@@ -115,6 +115,13 @@ class TestValidate:
         with pytest.raises(UnitsDataError, match="五维不完整"):
             UnitsBook.from_file(_write(tmp_path, payload, fname))
 
+    def test_star_non_int_rejected(self, tmp_path):
+        """回归：star 为字符串/bool 时必须拒绝（M1 复审加固）。"""
+        bad = _unit(stars=[{"star": "1", "hp": 650, "ad": 40, "ar": 35, "mr": 35}])
+        payload, fname = _payload(units=[bad])
+        with pytest.raises(UnitsDataError, match="star 非法"):
+            UnitsBook.from_file(_write(tmp_path, payload, fname))
+
     def test_redundant_ref_missing(self, tmp_path):
         payload, fname = _payload(redundant=[["11400", "99999"]])
         with pytest.raises(UnitsDataError, match="redundant_ids"):
