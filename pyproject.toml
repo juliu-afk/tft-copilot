@@ -1,0 +1,39 @@
+[project]
+name = "tft-copilot"
+version = "0.1.0"
+description = "金铲铲之战「大橘大利」模式本地只读辅助工具——机器补记忆，人补导航"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.13"
+dependencies = [
+    "mss>=9.0",
+    "opencv-python>=4.10",
+    "paddleocr>=2.7",
+    "paddlepaddle>=2.6",
+    "PyQt6>=6.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "polars>=1.0",
+]
+
+[project.scripts]
+tft-copilot = "tft_copilot.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
