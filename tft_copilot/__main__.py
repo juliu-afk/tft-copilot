@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from tft_copilot.perception_check import add_subparser as add_perception_test
 from tft_copilot.rules_check import add_subparser as add_rules_check
 from tft_copilot.units_check import add_subparser as add_units_check
 
@@ -21,6 +22,7 @@ def main(argv: list[str] | None = None) -> int:
 
     add_rules_check(sub)
     add_units_check(sub)
+    add_perception_test(sub)
 
     parsed = parser.parse_args(argv)
     if getattr(parsed, "func", None) is None:
