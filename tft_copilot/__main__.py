@@ -12,6 +12,7 @@ import argparse
 import sys
 
 from tft_copilot.rules_check import add_subparser as add_rules_check
+from tft_copilot.units_check import add_subparser as add_units_check
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -19,6 +20,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command")
 
     add_rules_check(sub)
+    add_units_check(sub)
 
     parsed = parser.parse_args(argv)
     if getattr(parsed, "func", None) is None:
