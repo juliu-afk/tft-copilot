@@ -44,7 +44,7 @@ def bundle_data_dir() -> Path:
     parents[2] 解析一致：frozen 下 __file__ 位于 _MEIPASS 内）。
     """
     if is_frozen():
-        return Path(getattr(sys, "_MEIPASS")) / "data"
+        return Path(sys._MEIPASS) / "data"
     return exe_dir() / "data"
 
 
