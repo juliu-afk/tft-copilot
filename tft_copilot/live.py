@@ -32,6 +32,8 @@ from tft_copilot.knowledge.units_loader import UnitsBook
 from tft_copilot.overlay.hud import HUDState, create_hud
 from tft_copilot.paths import bundle_data_dir
 from tft_copilot.perception.grabber import ScreenGrabber
+from tft_copilot.perception.scene_signals import detect_scene_signal, scene_signal_scores
+from tft_copilot.perception.win_grabber import WindowGrabber
 from tft_copilot.perception.numbers import read_number
 from tft_copilot.perception.scene import GameScene, SceneScheduler
 from tft_copilot.perception.templates import TEMPLATES_DIR, TemplateBank
@@ -60,7 +62,11 @@ class LiveCopilot:
         self._bank = TemplateBank()
         self._scheduler = SceneScheduler()
         self._spotter = UnitSpotter(bank=self._bank)
-        self._grabber = ScreenGrabber()
+        # 真机层：优先游戏窗口抓帧（穿透遮挡+坐标对齐），失败降级全屏
+        self._win_grabber = WindowGrabber()
+        self._fallback_grabber = ScreenGrabber()
+        self._grabber = self._win_grabber
+        self._last_grab_error = None
         self._anchors = load_anchors_config()
         # 决策组件（读资源走 bundle；写数据走 writable）
         self._book = UnitsBook.from_file(bundle_data_dir() / "units" / "units_18.6.json")
@@ -80,6 +86,21 @@ class LiveCopilot:
         self._hud = None
 
     # ---------- 感知 ----------
+
+    def _grab_frame(self):
+        """取帧：游戏窗口优先（_grabber 默认=WindowGrabber），失败降级全屏。"""
+        try:
+            return self._grabber.grab()
+        except Exception as exc:  # noqa: BLE001 - 窗口不存在/最小化时降级
+            self._last_grab_error = str(exc)
+            return self._fallback_grabber.grab()
+
+    def _detect_scene(self, frame):
+        """场景识别：真机结构信号优先，合成模板兜底（不匹配则 UNKNOWN）。"""
+        scene = detect_scene_signal(frame)
+        if scene is not GameScene.UNKNOWN:
+            return scene
+        return self._scheduler.detect(frame)
 
     def _read_numbers(self, frame: np.ndarray) -> dict[str, int | None]:
         """读 4 个数字 ROI；失败为 None（诚实降级）。"""
@@ -172,14 +193,16 @@ class LiveCopilot:
         if self._quiet:
             return
         hint = "等待对局（未识别到游戏画面）" if scene == GameScene.UNKNOWN else "游戏大厅，未开局"
+        if scene == GameScene.UNKNOWN and self._last_grab_error:
+            hint = f"未找到游戏窗口，已降级全屏识别（{self._last_grab_error}）"
         print(f"\r[{time.strftime('%H:%M:%S')}] {hint}   ", end="", flush=True)
 
     # ---------- 主循环 ----------
 
     def _poll_once(self) -> float:
         """跑一帧，返回本帧应 sleep 秒数。"""
-        frame = self._grabber.grab()
-        scene = self._scheduler.detect(frame)
+        frame = self._grab_frame()
+        scene = self._detect_scene(frame)
         interval = self._scheduler.poll_interval(scene)
         if scene in (GameScene.UNKNOWN, GameScene.PRE_GAME):
             self._idle_hint(scene)
