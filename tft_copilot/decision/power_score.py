@@ -27,6 +27,8 @@ UNIT_POWER_DIV = 1000.0
 UNIT_POWER_AD_MULT = 10.0
 # 满配基准：10 个弈子，每格能量取全库 star3 行最大值（加载期算，无魔法常数）
 BOARD_SIZE = 10
+# 装备分满装基准：10 件成装（10 x grade 1.0）= 100 分锚点（M5）
+FULL_ITEM_BASE = 10.0
 # 血量趋势：50 为稳态中线，斜率系数
 TREND_BASE = 50.0
 TREND_SLOPE_MULT = 5.0
@@ -41,8 +43,9 @@ def _clamp(v: float, lo: float = 0.0, hi: float = 100.0) -> float:
 class PowerScorer:
     """给一家 PlayerState 打 0-100 战力分。"""
 
-    def __init__(self, book: UnitsBook) -> None:
+    def __init__(self, book: UnitsBook, equips_book: object | None = None) -> None:
         self._book = book
+        self._equips = equips_book  # M5：装备库可选注入；None -> item 分量恒 0（M3 兼容）
         # 满配基准：全库 star==3 行平均能量 x 10 格（版本典型成型线）。
         # WHY: 一星均 1.42 / 二星 2.36 / 三星均 5.21 / 六星顶 27.6——
         # 以三星均值 x10 为 100 分锚点，一星阵容约 27 分、六星顶配 clamp 100，
@@ -62,10 +65,27 @@ class PowerScorer:
         units = [u for u in state.units if u.score >= 0.45]  # pending 剔除（A2）
         star = self.star_score(units)
         trait = self.trait_score(units)
-        item = 0.0
+        item = self.item_score(units)
         trend = self.trend_score(state.hp_history)
         total = W_STAR * star + W_TRAIT * trait + W_ITEM * item + W_TREND * trend
         return round(_clamp(total), 1)
+
+    def item_score(self, units: list[UnitOnBoard]) -> float:
+        """装备分（M5 激活，AC5.5）：Σ装备 grade / 满装基准 * 100。
+
+        满装基准 = 10 件成装（10 x 1.0）锚点；equips 库未注入或全裸装 -> 0
+        （与 M3 恒 0 行为兼容，既有测试分值不变）。
+        """
+        if self._equips is None:
+            return 0.0
+        total = 0.0
+        for u in units:
+            for eid in u.items:
+                try:
+                    total += self._equips.by_id(int(eid)).grade
+                except Exception:
+                    continue  # 未知装备 id 诚实跳过（降级不炸）
+        return _clamp(total / FULL_ITEM_BASE * 100.0)
 
     def star_score(self, units: list[UnitOnBoard]) -> float:
         """星级分：Σ弈子能量 / 满配基准 * 100。star=None 按一星（E4）。"""
