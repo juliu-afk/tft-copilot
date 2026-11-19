@@ -30,7 +30,7 @@ from tft_copilot.knowledge.rules_loader import load_rules
 from tft_copilot.knowledge.traits_loader import load_traits
 from tft_copilot.knowledge.units_loader import UnitsBook
 from tft_copilot.overlay.hud import HUDState, create_hud
-from tft_copilot.paths import bundle_data_dir, writable_data_dir
+from tft_copilot.paths import bundle_data_dir
 from tft_copilot.perception.grabber import ScreenGrabber
 from tft_copilot.perception.numbers import read_number
 from tft_copilot.perception.scene import GameScene, SceneScheduler
@@ -208,6 +208,14 @@ class LiveCopilot:
             hud = create_hud("console")
         self._hud = hud
 
+        # Ctrl+C：Qt 会吞 SIGINT，注册 Python 层 handler 置位退出（及时响应）
+        import signal
+
+        prev_int = signal.getsignal(signal.SIGINT)
+        prev_term = signal.getsignal(signal.SIGTERM)
+        signal.signal(signal.SIGINT, self._on_sigint)
+        signal.signal(signal.SIGTERM, self._on_sigint)
+
         started = time.perf_counter()
         stats: dict = {"frames": 0, "advices": 0, "scenes": {}, "duration": 0.0}
         if not self._quiet:
@@ -238,6 +246,8 @@ class LiveCopilot:
                 print("\n收到退出信号")
         finally:
             stats["duration"] = round(time.perf_counter() - started, 1)
+            signal.signal(signal.SIGINT, prev_int)
+            signal.signal(signal.SIGTERM, prev_term)
             if hud is not None:
                 try:
                     hud.close()
@@ -256,6 +266,10 @@ class LiveCopilot:
 
     def stop(self) -> None:
         self._shutdown = True
+
+    @staticmethod
+    def _on_sigint(signum, frame) -> None:  # noqa: ARG004 - signal 回调签名
+        raise KeyboardInterrupt
 
 
 def start_live_command(max_seconds: float | None = None, quiet: bool = False) -> dict:
