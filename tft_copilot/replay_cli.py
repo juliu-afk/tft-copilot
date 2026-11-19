@@ -88,10 +88,17 @@ def cmd_replay(args) -> int:
 # ---------- stats ----------
 
 def quadrant_summary(preds: list[tuple]) -> None:
-    """四象限统计：高置信x对 / 高置信x错 / 低置信x对 / 低置信x错（工程方案 5.3）。"""
+    """四象限统计：高置信x对 / 高置信x错 / 低置信x对 / 低置信x错（工程方案 5.3）。
+
+    preds 元组长度兼容 3（M3 旧口径）与 4（M5 加 pred_engine）。
+    M5：L1.5 子集单独一行输出（分引擎看判错率）。
+    """
     q = {"hi_right": 0, "hi_wrong": 0, "lo_right": 0, "lo_wrong": 0}
+    q15 = dict(q)  # L1.5 子集
     n_done = 0
-    for wr, conf, actual in preds:
+    for row in preds:
+        wr, conf, actual = row[0], row[1], row[2]
+        engine = row[3] if len(row) > 3 else None
         if wr is None or actual is None:
             continue
         n_done += 1
@@ -101,10 +108,12 @@ def quadrant_summary(preds: list[tuple]) -> None:
         if actual == "I":
             continue
         right = predicted_win == actual_win
-        if high_conf:
-            q["hi_right" if right else "hi_wrong"] += 1
-        else:
-            q["lo_right" if right else "lo_wrong"] += 1
+        bucket = ("hi_right" if right else "hi_wrong") if high_conf else (
+            "lo_right" if right else "lo_wrong"
+        )
+        q[bucket] += 1
+        if engine == "L1.5":
+            q15[bucket] += 1
     total = q["hi_right"] + q["hi_wrong"]
     rate = q["hi_wrong"] / total * 100 if total else 0.0
     print("-- 四象限统计 --")
@@ -114,8 +123,24 @@ def quadrant_summary(preds: list[tuple]) -> None:
     )
     if total:
         print(f"高置信判错率 {rate:.1f}%（真实判错率口径，M5 验收 <=15%）")
+    t15 = q15["hi_right"] + q15["hi_wrong"]
+    if t15:
+        r15 = q15["hi_wrong"] / t15 * 100
+        print(
+            f"[L1.5] 高置信x对 {q15['hi_right']} | 高置信x错 {q15['hi_wrong']}"
+            f" | 判错率 {r15:.1f}%"
+        )
     if n_done < QUADRANT_MIN_SAMPLES:
         print(f"样本 {n_done} < {QUADRANT_MIN_SAMPLES}：样本不足，仅供观察")
+
+
+def cmd_quadrant(args) -> int:
+    """M5 独立子命令：只看四象限归因（PRD AC4.1）。"""
+    store = _open_store(args)
+    preds = store.all_predictions(getattr(args, "match", None))
+    quadrant_summary(preds)
+    store.close()
+    return 0
 
 
 def cmd_stats(args) -> int:
@@ -178,6 +203,7 @@ def add_subparser(sub) -> None:
     for name, fn, help_ in [
         ("replay", cmd_replay, "逐回合回放对局"),
         ("stats", cmd_stats, "对局统计（含四象限）"),
+        ("quadrant", cmd_quadrant, "四象限归因（M5，可按局过滤）"),
         ("export", cmd_export, "导出 CSV"),
     ]:
         p = sub.add_parser(name, help=help_)
@@ -185,7 +211,7 @@ def add_subparser(sub) -> None:
         if name == "replay":
             p.add_argument("--match", type=int, required=True, help="对局 id")
             p.add_argument("--round", type=int, default=None, help="跳到指定回合")
-        if name == "stats":
+        if name in ("stats", "quadrant"):
             p.add_argument("--match", type=int, default=None, help="限定单局")
         if name == "export":
             p.add_argument("--csv", required=True, help="导出目录")

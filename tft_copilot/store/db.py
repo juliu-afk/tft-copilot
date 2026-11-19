@@ -62,6 +62,11 @@ class MatchStore:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._conn.executescript(SCHEMA)
+        # M5 迁移：rounds 加 pred_engine 列（幂等，旧库自动升级）
+        try:
+            self._conn.execute("ALTER TABLE rounds ADD COLUMN pred_engine TEXT")
+        except sqlite3.OperationalError:
+            pass  # 列已存在
         self._conn.commit()
         # 库级版本锚定：matches 表首个版本即库版本；不一致拒写
         row = self._conn.execute(
@@ -100,13 +105,14 @@ class MatchStore:
         predicted_winrate: float | None,
         prediction_confidence: str | None,
         advices: list | None,
+        pred_engine: str | None = None,
     ) -> None:
         self._conn.execute(
             """INSERT INTO rounds(match_id, round_no, version, scene, quality,
                layers, hp, gold, level, my_units, power_score,
                opp_player, predicted_winrate, prediction_confidence,
-               actual_result, advices)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL,?)""",
+               actual_result, advices, pred_engine)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL,?,?)""",
             (
                 match_id,
                 round_no,
@@ -137,6 +143,7 @@ class MatchStore:
                     [{"level": a.level, "text": a.text, "source": a.source} for a in (advices or [])],
                     ensure_ascii=False,
                 ),
+                pred_engine,
             ),
         )
         self._conn.commit()
@@ -210,15 +217,18 @@ class MatchStore:
         return out
 
     def all_predictions(self, match_id: int | None = None) -> list[tuple]:
-        """(predicted_winrate, confidence, actual_result) 三元组，四象限统计用。"""
+        """(predicted_winrate, confidence, actual_result, pred_engine) 四元组，四象限统计用。
+
+        pred_engine: 'L1.5' | 'L0' | NULL（M3 旧数据无该列值，按 NULL 归 L0 口径展示）。
+        """
         if match_id is None:
             rows = self._conn.execute(
-                """SELECT predicted_winrate, prediction_confidence, actual_result
+                """SELECT predicted_winrate, prediction_confidence, actual_result, pred_engine
                    FROM rounds WHERE predicted_winrate IS NOT NULL"""
             ).fetchall()
         else:
             rows = self._conn.execute(
-                """SELECT predicted_winrate, prediction_confidence, actual_result
+                """SELECT predicted_winrate, prediction_confidence, actual_result, pred_engine
                    FROM rounds WHERE predicted_winrate IS NOT NULL AND match_id = ?""",
                 (match_id,),
             ).fetchall()

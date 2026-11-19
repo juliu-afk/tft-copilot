@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
 """M4 实现记录/审查/测试报告 生成脚本（防残句三件套）"""
+import os
 import subprocess
 
 L = chr(10)
@@ -157,7 +157,6 @@ report = L.join([
     "A1-A6 全绿 + 三门禁全过。M4 代码就绪。",
 ])
 
-import os
 os.makedirs(OUT, exist_ok=True)
 for name, doc in [
     ("阶段3-实现记录-卡组参谋.md", impl),

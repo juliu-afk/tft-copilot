@@ -18,12 +18,16 @@ LAYER_MAX_JUMP = 100
 
 @dataclass(frozen=True)
 class UnitOnBoard:
-    """感知 UnitBox 的决策层投影（解耦：不依赖感知层类型）。"""
+    """感知 UnitBox 的决策层投影（解耦：不依赖感知层类型）。
+
+    items: 该弈子携带的装备 id 列表（M5，感知层 M6 补；默认空=裸装）。
+    """
 
     unit_id: str
     cost: int
     star: int | None  # None -> 一星基线（E4）
     score: float
+    items: tuple[int, ...] = ()  # 装备 id（equips 库主键）
 
 
 @dataclass
@@ -46,12 +50,17 @@ class BoardSnapshot:
 
 @dataclass
 class PlayerState:
-    """全场一家（含自己）。units=None 表示未侦查（E6 诚实原则）。"""
+    """全场一家（含自己）。units=None 表示未侦查（E6 诚实原则）。
+
+    positions: unit_id -> 格位 0-27（0-7 前两排/8-15 中排/16-27 后排）。
+    M2 感知暂未产出，None 时站位粗算按 range 推断（M5 方案 §3.5）。
+    """
 
     player: str  # 'me' | 'p1'..'p7'
     units: list[UnitOnBoard] | None
     hp: int | None
     hp_history: list[int] = field(default_factory=list)
+    positions: dict[str, int] | None = None
 
 
 @dataclass(frozen=True)

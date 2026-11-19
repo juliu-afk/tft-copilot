@@ -11,7 +11,10 @@ import time
 
 from tft_copilot.decision.impact import evaluate as impact_evaluate
 from tft_copilot.decision.layer_progress import MILESTONES, LayerProgress, build_rewards_map
-from tft_copilot.decision.matchup import advice_for, predict
+from tft_copilot.decision.matchup import advice_for
+from tft_copilot.decision.matchup15 import predict_l15, to_matchup_pred
+from tft_copilot.decision.panel import PanelEngine
+from tft_copilot.decision.positioning import classify as classify_pos
 from tft_copilot.decision.power_score import PowerScorer
 from tft_copilot.decision.snapshot import (
     BoardSnapshot,
@@ -35,13 +38,20 @@ class DecisionEngine:
         store=None,  # MatchStore | None
         hud: HUDBase | None = None,
         deck_plan: tuple[str, ...] | None = None,
+        traits_book=None,  # TraitsBook | None（M5 L1.5；None -> 对位降级 L0）
+        equips_book=None,  # EquipsBook | None（M5 装备分；None -> item 恒 0）
     ) -> None:
         self._rules = rules
         self._book = book
         self._store = store
         self._hud = hud or ConsoleHUD(quiet=True)
         self._layers_mod = LayerProgress(build_rewards_map(rules.rewards))
-        self._power = PowerScorer(book)
+        self._power = PowerScorer(book, equips_book=equips_book)
+        # M5 L1.5：三轴面板引擎（traits 缺省 None 时 assemble 恒 None -> 自动 L0）
+        self._panel = (
+            PanelEngine(book, traits_book, equips_book) if traits_book is not None else None
+        )
+        self._last_engine = "L0"  # 最近一次对位所用引擎（落库 pred_engine）
         self._guard = LayersGuard()
         self._match_id: int | None = None
         self._version = rules.patch
@@ -106,10 +116,25 @@ class DecisionEngine:
             for name, ps in players.items():
                 scores[name] = self._power.score(ps)
 
-        # 4. 模块(3) 对位预测
+        # 4. 模块(3) 对位预测（M5：L1.5 三轴面板，缺数据自动降级 L0）
         my_score = scores.get("me")
         opp_score = scores.get(next_opp) if next_opp else None
-        pred = predict(my_score, opp_score)
+        my_state = players.get("me") if players else None
+        opp_state = players.get(next_opp) if (players and next_opp) else None
+        my_panel = opp_panel = None
+        my_ctx = opp_ctx = None
+        if self._panel is not None:
+            my_panel = self._panel.assemble(my_state) if my_state else None
+            opp_panel = self._panel.assemble(opp_state) if opp_state else None
+            if my_panel is not None and opp_panel is not None:
+                my_ctx = classify_pos(my_state, self._book)
+                opp_ctx = classify_pos(opp_state, self._book)
+        pred15 = predict_l15(
+            my_panel, opp_panel, my_power=my_score, opp_power=opp_score,
+            my_ctx=my_ctx, opp_ctx=opp_ctx,
+        )
+        self._last_engine = pred15.engine
+        pred = to_matchup_pred(pred15)
         advices += advice_for(pred, next_opp)
 
         # 5. 模块(4) 影响推演
@@ -139,7 +164,6 @@ class DecisionEngine:
 
         # 8. 落库（E7 降级）
         self._store_round(snap, layers, my_score, next_opp, pred, advices)
-
         self._last_cost_ms = (time.perf_counter() - t0) * 1000
         return advices
 
@@ -199,6 +223,7 @@ class DecisionEngine:
                 pred.winrate,
                 pred.confidence,
                 advices,
+                pred_engine=self._last_engine,
             )
         except Exception:
             # E7：文件锁等 -> 内存模式，Toast 一次

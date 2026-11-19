@@ -13,6 +13,7 @@ import sys
 
 from tft_copilot.decision_check import add_subparser as add_decision_test
 from tft_copilot.deck_check import add_subparser as add_deck_check
+from tft_copilot.equips_check import add_subparser as add_equips_check
 from tft_copilot.perception_check import add_subparser as add_perception_test
 from tft_copilot.replay_cli import add_subparser as add_replay_cli
 from tft_copilot.rules_check import add_subparser as add_rules_check
@@ -25,6 +26,7 @@ def main(argv: list[str] | None = None) -> int:
 
     add_rules_check(sub)
     add_units_check(sub)
+    add_equips_check(sub)
     add_perception_test(sub)
     add_decision_test(sub)
     add_replay_cli(sub)
