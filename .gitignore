@@ -29,3 +29,4 @@ Thumbs.db
 # M1-2 抓取产物（本地灾备，不进库）
 data/units/raw_html/
 data/units/fetch_log.txt
+tmp_ocr_frame.txt
