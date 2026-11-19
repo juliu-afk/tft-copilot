@@ -32,6 +32,7 @@ from tft_copilot.knowledge.units_loader import UnitsBook
 from tft_copilot.overlay.hud import HUDState, create_hud
 from tft_copilot.paths import bundle_data_dir
 from tft_copilot.perception.grabber import ScreenGrabber
+from tft_copilot.perception.ocr_numbers import read_numbers_ocr
 from tft_copilot.perception.scene_signals import detect_scene_signal, scene_signal_scores
 from tft_copilot.perception.win_grabber import WindowGrabber
 from tft_copilot.perception.numbers import read_number
@@ -67,6 +68,8 @@ class LiveCopilot:
         self._fallback_grabber = ScreenGrabber()
         self._grabber = self._win_grabber
         self._last_grab_error = None
+        self._ocr_cache: dict[str, int | None] = {}
+        self._ocr_last = 0.0
         self._anchors = load_anchors_config()
         # 决策组件（读资源走 bundle；写数据走 writable）
         self._book = UnitsBook.from_file(bundle_data_dir() / "units" / "units_18.6.json")
@@ -103,7 +106,20 @@ class LiveCopilot:
         return self._scheduler.detect(frame)
 
     def _read_numbers(self, frame: np.ndarray) -> dict[str, int | None]:
-        """读 4 个数字 ROI；失败为 None（诚实降级）。"""
+        """读 4 个数字：WinOCR 真机识别（5s 节流），失败降级模板匹配。"""
+        import time as _t
+        if _t.monotonic() - self._ocr_last >= 5.0:
+            try:
+                self._ocr_cache = read_numbers_ocr(frame)
+                self._ocr_last = _t.monotonic()
+            except Exception:  # noqa: BLE001 - OCR 失败走旧链路
+                self._ocr_cache = {}
+        if self._ocr_cache:
+            return {k: self._ocr_cache.get(k) for k in NUM_KEYS}
+        return self._read_numbers_tmpl(frame)
+
+    def _read_numbers_tmpl(self, frame: np.ndarray) -> dict[str, int | None]:
+        """旧模板读数（降级链）。"""
         out: dict[str, int | None] = {}
         rois = self._anchors.get("numbers", {})
         for name in NUM_KEYS:
