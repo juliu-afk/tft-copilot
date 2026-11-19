@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """M4 技术方案生成脚本（防残句三件套：Write+py_compile+grep 自检）"""
 import os
 

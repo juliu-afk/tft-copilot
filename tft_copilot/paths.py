@@ -37,6 +37,17 @@ def writable_data_dir() -> Path:
     return exe_dir() / "data"
 
 
+def bundle_data_dir() -> Path:
+    """只读资源根：frozen=解包 bundle（sys._MEIPASS）/data；源码=项目 data/。
+
+    用途：loader 读 units/traits/rules 等打包数据（与 loader 内部
+    parents[2] 解析一致：frozen 下 __file__ 位于 _MEIPASS 内）。
+    """
+    if is_frozen():
+        return Path(getattr(sys, "_MEIPASS")) / "data"
+    return exe_dir() / "data"
+
+
 def patch_data_paths() -> Path:
     """重定向写路径（幂等，源码运行为 no-op）。
 

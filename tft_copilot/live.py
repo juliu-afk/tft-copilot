@@ -30,7 +30,7 @@ from tft_copilot.knowledge.rules_loader import load_rules
 from tft_copilot.knowledge.traits_loader import load_traits
 from tft_copilot.knowledge.units_loader import UnitsBook
 from tft_copilot.overlay.hud import HUDState, create_hud
-from tft_copilot.paths import writable_data_dir
+from tft_copilot.paths import bundle_data_dir, writable_data_dir
 from tft_copilot.perception.grabber import ScreenGrabber
 from tft_copilot.perception.numbers import read_number
 from tft_copilot.perception.scene import GameScene, SceneScheduler
@@ -62,8 +62,8 @@ class LiveCopilot:
         self._spotter = UnitSpotter(bank=self._bank)
         self._grabber = ScreenGrabber()
         self._anchors = load_anchors_config()
-        # 决策组件
-        self._book = UnitsBook.from_file(writable_data_dir() / "units" / "units_18.6.json")
+        # 决策组件（读资源走 bundle；写数据走 writable）
+        self._book = UnitsBook.from_file(bundle_data_dir() / "units" / "units_18.6.json")
         self._engine = DecisionEngine(
             load_rules(),
             self._book,
