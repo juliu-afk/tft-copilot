@@ -14,6 +14,7 @@ import sys
 from tft_copilot.decision_check import add_subparser as add_decision_test
 from tft_copilot.deck_check import add_subparser as add_deck_check
 from tft_copilot.equips_check import add_subparser as add_equips_check
+from tft_copilot.live import start_live_command
 from tft_copilot.perception_check import add_subparser as add_perception_test
 from tft_copilot.replay_cli import add_subparser as add_replay_cli
 from tft_copilot.rules_check import add_subparser as add_rules_check
@@ -31,6 +32,10 @@ def main(argv: list[str] | None = None) -> int:
     add_decision_test(sub)
     add_replay_cli(sub)
     add_deck_check(sub)
+
+    # live：实时副官（截屏循环 + HUD；Ctrl+C 退出）
+    p_live = sub.add_parser("live", help="实时副官（开游戏时用）")
+    p_live.set_defaults(func=lambda args: start_live_command() and 0 or 0)
 
     parsed = parser.parse_args(argv)
     if getattr(parsed, "func", None) is None:
