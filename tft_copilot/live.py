@@ -96,6 +96,9 @@ class LiveCopilot:
         self._last_print_key: tuple | None = None  # 读数行指纹（不变不重印）
         self._shown_adv_texts: set[str] = set()  # 建议文本一局只报一次
         self._last_idle_hint: str | None = None  # 空闲提示变化时才打印
+        # v4（2026-11-20）：连胜/连败追踪（回合边界结算：血不变=胜，下降=败）
+        self._streak = 0  # +N=连胜 -N=连败 0=未知
+        self._last_hp: int | None = None  # 上次结算时的血量
 
     # ---------- 感知 ----------
 
@@ -171,10 +174,30 @@ class LiveCopilot:
 
     # ---------- 决策 ----------
 
-    def _maybe_new_round(self, scene: GameScene) -> None:
-        """场景切到 BATTLE = 新回合边界。"""
+    def _maybe_new_round(self, scene: GameScene, nums: dict | None = None) -> None:
+        """场景切到 BATTLE = 新回合边界，同时结算上回合胜负。"""
         if scene != self._last_scene and scene == GameScene.BATTLE:
             self._round_no += 1
+            self._settle_streak(nums or {})
+
+    def _settle_streak(self, nums: dict) -> None:
+        """回合边界结算连胜/连败：血不变=胜，血下降=败（跑刀无平局）。
+
+        只在进 BATTLE 时调用（每回合一次），逐帧比对会把同血量误加连胜。
+        """
+        hp = nums.get("hp")
+        if hp is None:
+            return
+        if self._last_hp is None:
+            self._last_hp = hp
+            return
+        if hp == self._last_hp:
+            self._streak = self._streak + 1 if self._streak > 0 else 1
+        elif hp < self._last_hp:
+            self._streak = self._streak - 1 if self._streak < 0 else -1
+        else:  # 血量上升（回血类强化）：连断
+            self._streak = 0
+        self._last_hp = hp
 
     def _ensure_match(self) -> None:
         if self._match_id is None and self._store is not None:
@@ -209,7 +232,9 @@ class LiveCopilot:
         )
         advices = self._engine.on_round(snap)
         # v2 策略层：阶段策略/经济/升级/保血/层数冲刺 + 开局预案
-        advices += all_strategy_advices(nums, scene.value, self._round_no, self._auto_deck_plan())
+        advices += all_strategy_advices(
+            nums, scene.value, self._round_no, self._auto_deck_plan(), self._streak,
+        )
         return advices
 
     def _should_store(self, scene: GameScene, nums: dict) -> bool:
@@ -258,9 +283,16 @@ class LiveCopilot:
             return
         if print_key != self._last_print_key:
             smaj, smin = nums.get("stage_major"), nums.get("stage_minor")
-            stage = f"{smaj}-{smin}" if smaj is not None else "?"
+            stage = (
+                f"{smaj}-{smin}" if smaj is not None else f"R{self._round_no}"
+            )
+            streak_badge = (
+                f" {abs(self._streak)}连胜" if self._streak > 0
+                else f" {abs(self._streak)}连败" if self._streak < 0
+                else ""
+            )
             print(
-                f"\n[{time.strftime('%H:%M:%S')}] R{self._round_no} {stage}"
+                f"\n[{time.strftime('%H:%M:%S')}] {stage}{streak_badge}"
                 f" 层{nums.get('layer') if nums.get('layer') is not None else '?'}"
                 f" 金{nums.get('gold') if nums.get('gold') is not None else '?'}"
                 f" 血{nums.get('hp') if nums.get('hp') is not None else '?'}"
@@ -297,11 +329,11 @@ class LiveCopilot:
         nums = self._read_numbers(frame)
         # v2：读数全 None 时只做场景跟踪，不喂决策不落库（防误识别污染）
         if all(v is None for v in nums.values()):
-            self._maybe_new_round(scene)
+            self._maybe_new_round(scene, nums)
             self._last_scene = scene
             return interval
         units = self._spot_units(frame, scene)
-        self._maybe_new_round(scene)
+        self._maybe_new_round(scene, nums)
         if self._should_store(scene, nums):
             advices = self._feed_engine(nums, units, scene)
         else:

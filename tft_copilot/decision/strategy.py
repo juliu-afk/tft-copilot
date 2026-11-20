@@ -1,8 +1,7 @@
-"""运营策略模块（M6 补课）：阶段化运营建议 + 开局卡组预案 + 任务提示.
+"""运营策略模块（M6 补课）：阶段化运营建议 + 开局卡组预案 + 连胜连败收入预估.
 
 v1 教训（2026-11-20 用户实测反馈）：数字读错 + 没有任何策略输出。
-本模块基于读数（gold/hp/layer/level/stage）产出可执行的运营提示，
-不依赖 8 家面板（那是 M6 后续），先让副官「说话」。
+v3（2026-11-20 下午）：加连胜/连败追踪 + 下回合收入预估（基础5+连X奖励+利息）。
 
 提示类型：
 - 经济线：金币 50 之上吃利息，攒钱/花线的分界提示
@@ -10,6 +9,7 @@ v1 教训（2026-11-20 用户实测反馈）：数字读错 + 没有任何策略
 - 保血线：血量阈值警示
 - 层数线：跑刀核心目标（里程碑前的最后冲刺提示）
 - 阶段策略：开局/中期/成型的通用打法一句话
+- 收入线：连胜/连败 + 下回合收入预估
 - 任务线：大橘大利任务（吃利息/升级/连胜等）达成路径
 
 budget: <1ms/次（纯查表）。
@@ -46,7 +46,6 @@ def level_advice(level: int | None, stage_major: int | None) -> list[Advice]:
     if level is None:
         return []
     out: list[Advice] = []
-    # 节奏参考：4-1 前上 5，5-2 前上 6，后期 7/8 择机
     if stage_major is not None:
         if stage_major <= 2 and level < 5:
             out.append(Advice(
@@ -121,6 +120,46 @@ def phase_strategy(stage_major: int | None, scene: str) -> list[Advice]:
     return []
 
 
+def streak_bonus(n: int) -> int:
+    """连X 奖励金（标准 TFT 规则：2-3 连 +1，4 连 +2，5+ 连 +3）。"""
+    a = abs(n)
+    if a >= 5:
+        return 3
+    if a == 4:
+        return 2
+    if a >= 2:
+        return 1
+    return 0
+
+
+def next_income(gold: int | None, streak: int) -> int | None:
+    """下回合收入预估：基础 5 + 连X奖励 + 利息（10 金 1 息，上限 5）。"""
+    inc = 5 + streak_bonus(streak)
+    if gold is not None:
+        inc += min(gold // 10, 5)
+        return inc
+    return None
+
+
+def streak_advice(gold: int | None, streak: int) -> list[Advice]:
+    """连胜/连败 + 下回合收入预估。"""
+    if streak == 0:
+        return []
+    label = f"{abs(streak)}连胜" if streak > 0 else f"{abs(streak)}连败"
+    sb = streak_bonus(streak)
+    parts = ["基础5"]
+    if sb:
+        parts.append(f"连{abs(streak)}奖励{sb}")
+    if gold is not None:
+        parts.append(f"利息{min(gold // 10, 5)}")
+    total = 5 + sb + (min(gold // 10, 5) if gold is not None else 0)
+    return [Advice(
+        "info",
+        f"{label}：下回合收入 约{'+'.join(parts)}={total} 金",
+        "income",
+    )]
+
+
 def opening_plan(deck_plan: tuple[str, ...], round_no: int) -> list[Advice]:
     """开局卡组预案提示（前 2 回合显示一次）。"""
     if deck_plan and round_no <= 2:
@@ -137,6 +176,7 @@ def all_strategy_advices(
     scene: str,
     round_no: int,
     deck_plan: tuple[str, ...] = (),
+    streak: int = 0,
 ) -> list[Advice]:
     """运营策略总入口：live 每回合调用。"""
     gold = nums.get("gold")
@@ -152,4 +192,5 @@ def all_strategy_advices(
     out += level_advice(level, smaj)
     out += hp_advice(hp)
     out += layer_advice(layer)
+    out += streak_advice(gold, streak)
     return out

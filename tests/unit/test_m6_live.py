@@ -141,3 +141,29 @@ def test_idle_hint_prints_once_until_change(tmp_path, capsys):
     lc._idle_hint(GameScene.PRE_GAME)
     out2 = capsys.readouterr().out
     assert out2.count("游戏大厅") == 1
+
+
+def test_streak_settles_on_round_boundary(tmp_path):
+    """v4 连胜/连败：回合边界结算，血不变=胜、下降=败、转胜归 1。"""
+    db = tmp_path / "m.db"
+    lc = LiveCopilot(db_path=db, quiet=True)
+    lc._last_scene = GameScene.SHOP
+    seq = [(100, 0), (100, 1), (100, 2), (95, -1), (88, -2), (88, 1)]
+    for hp, want in seq:
+        lc._maybe_new_round(GameScene.BATTLE, {"hp": hp})
+        assert lc._streak == want, f"hp={hp} streak={lc._streak} want={want}"
+        lc._last_scene = GameScene.SHOP  # 手动重置供下一次边界
+
+
+def test_streak_income_advice():
+    """v4 收入预估：连X奖励+利息算进下回合收入。"""
+    from tft_copilot.decision.strategy import streak_advice, streak_bonus
+    assert streak_bonus(1) == 0
+    assert streak_bonus(3) == 1
+    assert streak_bonus(4) == 2
+    assert streak_bonus(9) == 3
+    a = streak_advice(46, 3)[0]
+    assert "3连胜" in a.text and "=10" in a.text  # 5+1+4
+    b = streak_advice(52, -4)[0]
+    assert "4连败" in b.text and "=12" in b.text  # 5+2+5
+    assert streak_advice(30, 0) == []
