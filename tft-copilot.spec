@@ -5,7 +5,7 @@ a = Analysis(
     ['tft_copilot\\launcher.py'],
     pathex=[],
     binaries=[],
-    datas=[('data/rules', 'data/rules'), ('data/units', 'data/units'), ('data/traits', 'data/traits'), ('data/equips', 'data/equips'), ('data/cards', 'data/cards'), ('data/templates', 'data/templates'), ('tools/ocr_probe.ps1', 'tools')],
+    datas=[('data/rules', 'data/rules'), ('data/units', 'data/units'), ('data/traits', 'data/traits'), ('data/equips', 'data/equips'), ('data/cards', 'data/cards'), ('data/hexes', 'data/hexes'), ('data/templates', 'data/templates'), ('tools/ocr_probe.ps1', 'tools')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

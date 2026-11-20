@@ -167,3 +167,50 @@ def test_streak_income_advice():
     b = streak_advice(52, -4)[0]
     assert "4连败" in b.text and "=12" in b.text  # 5+2+5
     assert streak_advice(30, 0) == []
+
+
+def test_pick_event_gate_cooldown():
+    """v5 选前提醒：事件 60s 冷却去重。"""
+    from tft_copilot.perception.pick_events import PickEventGate
+    gate = PickEventGate()
+    assert gate.admit("draft") is True
+    assert gate.admit("draft") is False
+    assert gate.admit("hex") is True
+    assert gate.admit("hex") is False
+
+
+def test_pick_guides_output(tmp_path, capsys):
+    """v5 选前提醒：选秀给装备优先级，符文给三档原则+库内真实推荐。"""
+    import sys
+    sys.path.insert(0, ".")
+    from tft_copilot.knowledge.hexes_loader import load_hexes
+    from tft_copilot.decision.pick_guides import pick_event_advices
+
+    book = load_hexes()
+    d = pick_event_advices("draft", book, 2)
+    assert any("选秀" in a.text and ("暴风之剑" in a.text or "散件" in a.text) for a in d)
+    h = pick_event_advices("hex", book, 3)
+    assert any("彩>金>银" in a.text for a in h)
+    assert any("对冲基金" in a.text for a in h)  # 库内真实存在
+
+
+def test_live_pick_guide_dedup(tmp_path, capsys):
+    """v5 集成：同事件连打只报一次（_maybe_pick_guide 走事件门）。"""
+    import sys
+    sys.path.insert(0, ".")
+    import numpy as np
+    import tft_copilot.live as lv
+    from tft_copilot.live import LiveCopilot
+    from tft_copilot.perception.scene import GameScene
+
+    lc = LiveCopilot(db_path=tmp_path / "m.db", quiet=False)
+    frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    orig = lv.detect_pick_event
+    lv.detect_pick_event = lambda f: "draft"
+    try:
+        for _ in range(3):
+            lc._maybe_pick_guide(frame, GameScene.SHOP)
+    finally:
+        lv.detect_pick_event = orig
+    out = capsys.readouterr().out
+    assert out.count("选秀提醒") == 1

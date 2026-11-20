@@ -26,6 +26,8 @@ import numpy as np
 from tft_copilot.decision.engine import DecisionEngine
 from tft_copilot.decision.snapshot import BoardSnapshot, UnitOnBoard
 from tft_copilot.decision.strategy import all_strategy_advices
+from tft_copilot.decision.pick_guides import pick_event_advices
+from tft_copilot.perception.pick_events import detect_pick_event, PickEventGate
 from tft_copilot.knowledge.equips_loader import load_equips
 from tft_copilot.knowledge.rules_loader import load_rules
 from tft_copilot.knowledge.traits_loader import load_traits
@@ -99,6 +101,9 @@ class LiveCopilot:
         # v4（2026-11-20）：连胜/连败追踪（回合边界结算：血不变=胜，下降=败）
         self._streak = 0  # +N=连胜 -N=连败 0=未知
         self._last_hp: int | None = None  # 上次结算时的血量
+        # v5（2026-11-20）：选前提醒（选秀装备/强化符文三选一）
+        self._pick_gate = PickEventGate()
+        self._hexes_book = None  # 懒加载（首事件时才读库；False=加载失败不再重试）
 
     # ---------- 感知 ----------
 
@@ -179,6 +184,33 @@ class LiveCopilot:
         if scene != self._last_scene and scene == GameScene.BATTLE:
             self._round_no += 1
             self._settle_streak(nums or {})
+
+    def _maybe_pick_guide(self, frame: np.ndarray, scene: GameScene) -> None:
+        """选前提醒：选秀->装备优先级；强化符文->三档选择原则+经济推荐。
+
+        独立提示通道（不走 _push_hud 建议流），事件冷却 60s 防重报。
+        """
+        try:
+            event = detect_pick_event(frame)
+        except Exception:  # noqa: BLE001 - 事件检测失败不影响主链路
+            return
+        if event is None or not self._pick_gate.admit(event):
+            return
+        if self._hexes_book is None:
+            try:
+                from tft_copilot.knowledge.hexes_loader import load_hexes
+                self._hexes_book = load_hexes()
+            except Exception:  # noqa: BLE001 - 库缺失只降级该类提示
+                self._hexes_book = False
+        book = self._hexes_book if self._hexes_book else None
+        advs = pick_event_advices(event, book, self._round_no or 1)
+        label = "选秀提醒" if event == "draft" else "强化符文提醒"
+        if not self._quiet:
+            ts = time.strftime("%H:%M:%S")
+            ts_line = "[" + ts + "] ===== " + label + " ====="
+            print(chr(10) + ts_line, flush=True)
+            for a in advs:
+                print(f"  [{a.level}] {a.text}", flush=True)
 
     def _settle_streak(self, nums: dict) -> None:
         """回合边界结算连胜/连败：血不变=胜，血下降=败（跑刀无平局）。
@@ -326,6 +358,7 @@ class LiveCopilot:
         if scene in (GameScene.UNKNOWN, GameScene.PRE_GAME):
             self._idle_hint(scene)
             return interval
+        self._maybe_pick_guide(frame, scene)
         nums = self._read_numbers(frame)
         # v2：读数全 None 时只做场景跟踪，不喂决策不落库（防误识别污染）
         if all(v is None for v in nums.values()):
