@@ -92,6 +92,10 @@ class LiveCopilot:
         self._last_store_key: tuple | None = None  # (round, scene, 读数指纹)
         self._last_adv_key: str | None = None  # 提示去重（同文本不重发）
         self._deck_plan: tuple[str, ...] = ()  # 开局三卡预案（自动推荐）
+        # v3（2026-11-20）：控制台降噪——只在变化时打印
+        self._last_print_key: tuple | None = None  # 读数行指纹（不变不重印）
+        self._shown_adv_texts: set[str] = set()  # 建议文本一局只报一次
+        self._last_idle_hint: str | None = None  # 空闲提示变化时才打印
 
     # ---------- 感知 ----------
 
@@ -237,19 +241,36 @@ class LiveCopilot:
             self._hud.update(state)
             for a in advices:
                 self._hud.toast(a.level, a.text)
-        if not self._quiet:
+        if self._quiet:
+            return
+        # v3 降噪：读数行只在指纹变化时打印；建议同文本一局只报一次
+        print_key = (
+            self._round_no,
+            nums.get("stage_major"),
+            nums.get("stage_minor"),
+            nums.get("layer"),
+            nums.get("gold"),
+            nums.get("hp"),
+            nums.get("level"),
+        )
+        new_advs = [a for a in advices if a.text not in self._shown_adv_texts]
+        if print_key == self._last_print_key and not new_advs:
+            return
+        if print_key != self._last_print_key:
             smaj, smin = nums.get("stage_major"), nums.get("stage_minor")
             stage = f"{smaj}-{smin}" if smaj is not None else "?"
-            line = (
-                f"\r[{time.strftime('%H:%M:%S')}] R{self._round_no} {stage}"
+            print(
+                f"\n[{time.strftime('%H:%M:%S')}] R{self._round_no} {stage}"
                 f" 层{nums.get('layer') if nums.get('layer') is not None else '?'}"
                 f" 金{nums.get('gold') if nums.get('gold') is not None else '?'}"
                 f" 血{nums.get('hp') if nums.get('hp') is not None else '?'}"
-                f" 级{nums.get('level') if nums.get('level') is not None else '?'}   "
+                f" 级{nums.get('level') if nums.get('level') is not None else '?'}",
+                flush=True,
             )
-            print(line, end="", flush=True)
-            for a in advices:
-                print(f"\n  [{a.level}] {a.text}", flush=True)
+            self._last_print_key = print_key
+        for a in new_advs:
+            self._shown_adv_texts.add(a.text)
+            print(f"  [{a.level}] {a.text}", flush=True)
 
     def _idle_hint(self, scene: GameScene) -> None:
         if self._quiet:
@@ -257,7 +278,11 @@ class LiveCopilot:
         hint = "等待对局（未识别到游戏画面）" if scene == GameScene.UNKNOWN else "游戏大厅，未开局"
         if scene == GameScene.UNKNOWN and self._last_grab_error:
             hint = f"未找到游戏窗口，已降级全屏识别（{self._last_grab_error}）"
-        print(f"\r[{time.strftime('%H:%M:%S')}] {hint}   ", end="", flush=True)
+        # v3 降噪：提示文本变化时才打印一次
+        if hint == self._last_idle_hint:
+            return
+        self._last_idle_hint = hint
+        print(f"\n[{time.strftime('%H:%M:%S')}] {hint}", flush=True)
 
     # ---------- 主循环 ----------
 

@@ -102,3 +102,42 @@ def test_max_seconds_exit(tmp_path):
     stats = lc.start_live(max_seconds=0.3)
     assert stats["frames"] >= 1
     assert stats["duration"] >= 0.3
+
+
+class _Advice:
+    def __init__(self, level, text):
+        self.level = level
+        self.text = text
+
+
+def test_console_prints_only_on_change(tmp_path, capsys):
+    """v3 降噪：读数不变不重印；建议同文本一局只报一次。"""
+    db = tmp_path / "m.db"
+    lc = LiveCopilot(db_path=db, quiet=False)
+    nums = {"layer": 8, "gold": 2, "hp": 90, "level": 1, "stage_major": 1, "stage_minor": 1}
+    adv = [_Advice("info", "下一档：10 层，还差 2 层")]
+    # 同读数同建议连打 3 次：只应出现 1 次读数行 + 1 次建议
+    for _ in range(3):
+        lc._push_hud(nums, adv)
+    out1 = capsys.readouterr().out
+    assert out1.count("层8") == 1
+    assert out1.count("下一档") == 1
+    # 读数变化：新读数行出现；建议重复不重报
+    nums2 = {**nums, "gold": 10}
+    lc._push_hud(nums2, adv)
+    out2 = capsys.readouterr().out
+    assert out2.count("金10") == 1
+    assert "下一档" not in out2
+
+
+def test_idle_hint_prints_once_until_change(tmp_path, capsys):
+    """v3 降噪：空闲提示同文本只打一次，变化才重打。"""
+    db = tmp_path / "m.db"
+    lc = LiveCopilot(db_path=db, quiet=False)
+    for _ in range(3):
+        lc._idle_hint(GameScene.UNKNOWN)
+    out1 = capsys.readouterr().out
+    assert out1.count("等待对局") == 1
+    lc._idle_hint(GameScene.PRE_GAME)
+    out2 = capsys.readouterr().out
+    assert out2.count("游戏大厅") == 1
