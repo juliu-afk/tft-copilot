@@ -1,36 +1,87 @@
-"""WinOCR 数字识别器：PowerShell 调 Windows 内置 WinRT OCR（M6 真机层）。
+"""WinOCR 数字识别器 v2：多区域扫描 + 语义校验（M6 真机层重写）.
 
-零三方依赖：winsdk 在 Py3.14 无预编译包，改用 powershell.exe -File 子进程调用，
-输出 WORD|text|x|y|w|h 行协议。zh-CN OCR 语言包系统自带。
+v1 教训（2026-11-20 实测翻车）：
+- 只扫右栏面板 -> 金币(底部中间)/等级(左下)/阶段(顶部)根本不在扫描区
+- 右栏道具文案数字（"获得2个微型英雄1复制器"）被误读为金币/等级
+- 单帧标定的锚点被界面动态文案污染
 
-数字读取策略：右栏面板 4x 放大 -> OCR -> 按锚点 ROI 过滤 + 数值范围校验。
-budget: ~200ms/次（子进程开销，分频调用：每回合读一次而非每帧）。
+v2 方案：
+- 4 个语义 ROI 分区扫描（顶部阶段/左下等级/底部金币/右下层+血）
+- 拼 tile 一次 OCR 调用（控制子进程开销）
+- 语义校验：阶段 X-Y 格式 / 等级 1-10 / 金币 0-200 / 血 0-100
+- 锚点坐标支持 JSON 热覆盖（data/perception_anchors.json）
+
 红线自查：只读屏幕像素，无输入模拟。
 """
 
 from __future__ import annotations
 
+import json
+import re
 import subprocess
+import sys
+import tempfile
 from pathlib import Path
 
 import cv2
 import numpy as np
 
-import sys
 
 def _ps1_path() -> Path:
-    """ocr_probe.ps1 位置：frozen 走 _MEIPASS/tools，源码走项目根/tools。"""
     if getattr(sys, "frozen", False):
         return Path(sys._MEIPASS) / "tools" / "ocr_probe.ps1"  # type: ignore[attr-defined]
     return Path(__file__).resolve().parents[2] / "tools" / "ocr_probe.ps1"
 
+
 _OCR_PS = _ps1_path()
-_SCALE = 4
-_PANEL = (1690, 60, 230, 940)  # 右栏面板 (x, y, w, h)
+_SCALE = 3
+
+# 默认 ROI（1920x1080 标准帧）：可被 data/perception_anchors.json 覆盖
+_DEFAULT_ROIS = {
+    "stage": (640, 0, 640, 70),      # 顶部中央：X-Y 阶段文本
+    "level": (330, 985, 200, 65),    # 左下：等级数字（1-10）
+    "gold": (700, 920, 500, 80),     # 底部中间：金币（0-200）
+    "hp_layer": (1690, 885, 230, 60),  # 右下：层数+血量
+}
+_ROI_ORDER = ("stage", "level", "gold", "hp_layer")
+_TILE_GAP = 12  # tile 间空白像素（原图坐标系）
+
+
+def _anchors_path() -> Path:
+    """锚点热覆盖文件位置（frozen 走 writable_data）。"""
+    try:
+        from tft_copilot.paths import writable_data_root
+
+        root = writable_data_root()
+    except Exception:
+        root = Path(__file__).resolve().parents[2] / "data"
+    p = root / "perception_anchors.json"
+    return p
+
+
+def load_rois() -> dict[str, tuple[int, int, int, int]]:
+    """读锚点配置：JSON 热覆盖 > 默认值。"""
+    rois = dict(_DEFAULT_ROIS)
+    p = _anchors_path()
+    try:
+        if p.exists():
+            data = json.loads(p.read_text(encoding="utf-8"))
+            for k in _ROI_ORDER:
+                if k in data:
+                    rois[k] = tuple(data[k])  # type: ignore[assignment]
+    except Exception:
+        pass
+    return rois  # type: ignore[return-value]
+
+
+def save_rois(rois: dict) -> None:
+    """锚点写盘（自动标定器用）。"""
+    p = _anchors_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(rois, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _run_ocr_ps(img_path: Path) -> list[tuple[str, int, int, int, int]]:
-    """跑一次 PowerShell OCR，返回 (text, x, y, w, h) 列表（图内坐标）。"""
     out_file = img_path.with_suffix(".txt")
     subprocess.run(
         ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
@@ -48,69 +99,120 @@ def _run_ocr_ps(img_path: Path) -> list[tuple[str, int, int, int, int]]:
     return words
 
 
-def ocr_words(frame: np.ndarray, roi: tuple[int, int, int, int] | None = None) -> list[tuple[str, int, int, int, int]]:
-    """对 frame 的 ROI 做 4x 放大 OCR，返回全帧坐标的 (text,x,y,w,h)。"""
-    px, py, pw, ph = roi or _PANEL
-    panel = frame[py:py + ph, px:px + pw]
-    big = cv2.resize(panel, None, fx=_SCALE, fy=_SCALE, interpolation=cv2.INTER_CUBIC)
-    import tempfile
+def ocr_tiles(frame: np.ndarray, rois: dict) -> dict[str, list[tuple[str, int, int, int, int]]]:
+    """4 ROI 拼竖条一次 OCR，返回各 ROI 内的词（原图坐标）。"""
+    tiles = []
+    tops = []
+    for k in _ROI_ORDER:
+        x, y, w, h = rois[k]
+        tiles.append(frame[y:y + h, x:x + w])
+        tops.append(y)
+    th = [t.shape[0] for t in tiles]
+    gap = np.full((_TILE_GAP, tiles[0].shape[1], 3), 0, dtype=np.uint8)
+    strips = []
+    offsets = []
+    cur = 0
+    for t, h in zip(tiles, th):
+        strips.append(t)
+        offsets.append(cur)
+        cur += h + _TILE_GAP
+    # 等宽拼接（宽度取最大，不足补黑）
+    wmax = max(t.shape[1] for t in strips)
+    canvas_parts = []
+    for t in strips:
+        if t.shape[1] < wmax:
+            pad = np.zeros((t.shape[0], wmax - t.shape[1], 3), dtype=np.uint8)
+            t = np.hstack([t, pad])
+        canvas_parts.append(t)
+        canvas_parts.append(gap)
+    canvas = np.vstack(canvas_parts[:-1])
+    big = cv2.resize(canvas, None, fx=_SCALE, fy=_SCALE, interpolation=cv2.INTER_CUBIC)
     with tempfile.TemporaryDirectory() as td:
         tmp = Path(td) / "ocr.png"
         cv2.imwrite(str(tmp), big)
         words = _run_ocr_ps(tmp)
-    return [(t, px + x // _SCALE, py + y // _SCALE, w // _SCALE, h // _SCALE)
-            for t, x, y, w, h in words]
+    out: dict[str, list] = {k: [] for k in _ROI_ORDER}
+    for t, x, y, w, h in words:
+        # y 反算到 canvas 原图坐标，再映射回 ROI
+        oy = y // _SCALE
+        for i, k in enumerate(_ROI_ORDER):
+            lo, hi = offsets[i], offsets[i] + th[i]
+            if lo <= oy < hi:
+                rx, ry = rois[k][0] + x // _SCALE, rois[k][1] + (oy - lo)
+                out[k].append((t, rx, ry, w // _SCALE, h // _SCALE))
+                break
+    return out
 
 
-# 真机标定锚点（2026-11-19 实测：三帧时序稳定验证）
-# gold: (1750,655) 单字符金币数字
-# hp:   (1810,914) 右下角大号血量数字
-_GOLD_ROI = (1738, 645, 70, 40)
-_HP_ROI = (1785, 900, 90, 45)
-_LEVEL_ROI = (1798, 74, 120, 36)  # 顶部等级区（1/75 等）
-LAYER_ROI = (1785, 900, 90, 45)   # 层数与血量同区右下，待分离校准
-
-
-def read_gold(frame: np.ndarray) -> int | None:
-    """金币：右栏中部金色数字。"""
-    for t, x, y, w, h in ocr_words(frame):
-        if x >= _GOLD_ROI[0] - 15 and abs(y - _GOLD_ROI[1]) < 15 and t.isdigit():
-            return int(t)
-    return None
-
-
-def read_hp(frame: np.ndarray) -> int | None:
-    """血量：右下角大数字。"""
-    for t, x, y, w, h in ocr_words(frame):
-        if x >= _HP_ROI[0] - 15 and abs(y - _HP_ROI[1]) < 15 and t.isdigit():
-            return int(t)
-    return None
-
-
-def read_level(frame: np.ndarray) -> int | None:
-    """等级：顶部白字（小于等于 10）。"""
-    best = None
-    for t, x, y, w, h in ocr_words(frame):
-        if _LEVEL_ROI[0] - 15 <= x and abs(y - _LEVEL_ROI[1]) < 15 and t.isdigit():
-            v = int(t)
-            if v <= 10:
-                best = v if best is None else max(best, v)
-    return best
+_STAGE_RE = re.compile(r"^(\d{1,2})[-.](\d{1,2})$")
 
 
 def read_numbers_ocr(frame: np.ndarray) -> dict[str, int | None]:
-    """读四数字：layer/gold/hp/level（layer 与 hp 同区待分离，暂同 hp）。"""
-    words = ocr_words(frame)
-    out = {"layer": None, "gold": None, "hp": None, "level": None}
-    for t, x, y, w, h in words:
-        if not t.isdigit():
-            continue
+    """读 5 项：stage_major/stage_minor/layer/gold/hp/level。
+
+    语义校验：
+    - stage: X-Y 格式，X 1-10, Y 1-7（大橘大利阶段-小节）
+    - level: 1-10
+    - gold: 0-200
+    - hp: 0-100（右下靠右数字）
+    - layer: 0-1500（右下靠左数字，跑刀累计层数）
+    """
+    rois = load_rois()
+    tiles = ocr_tiles(frame, rois)
+    out: dict[str, int | None] = {
+        "stage_major": None, "stage_minor": None,
+        "layer": None, "gold": None, "hp": None, "level": None,
+    }
+    # 1) stage：X-Y 文本
+    for t, *_ in tiles["stage"]:
+        m = _STAGE_RE.match(t.strip())
+        if m:
+            a, b = int(m.group(1)), int(m.group(2))
+            if 1 <= a <= 10 and 1 <= b <= 7:
+                out["stage_major"], out["stage_minor"] = a, b
+                break
+    # 2) level：1-10 的数字
+    cands = []
+    for t, x, y, w, h in tiles["level"]:
+        if t.isdigit():
+            v = int(t)
+            if 1 <= v <= 10:
+                cands.append(v)
+    if cands:
+        out["level"] = max(cands)
+    # 3) gold：0-200（底部中间区数字，排除刷新费用 2）
+    golds = []
+    for t, x, y, w, h in tiles["gold"]:
+        if t.isdigit():
+            v = int(t)
+            if 0 <= v <= 200:
+                golds.append((v, x))
+    if golds:
+        # 取 x 最小者：金币主数字在刷新按钮左侧，刷新费用 2D 在右
+        golds.sort(key=lambda p: p[1])
+        out["gold"] = golds[0][0]
+    # 4) hp/layer：右下两数字，靠左=层，靠右=血
+    nums = sorted(
+        [(t, x, y, w, h) for t, x, y, w, h in tiles["hp_layer"] if t.isdigit()],
+        key=lambda p: p[1],
+    )
+    valid = []
+    for t, x, y, w, h in nums:
         v = int(t)
-        if abs(y - 655) < 15 and x >= 1735:
-            out["gold"] = v
-        elif y >= 900:
+        if 0 <= v <= 1500:
+            valid.append((v, x, w, h))
+    if len(valid) >= 2:
+        # 左侧（层数可大）+ 右侧（血 0-100）
+        left, right = valid[0], valid[-1]
+        out["layer"] = left[0]
+        out["hp"] = right[0] if right[0] <= 100 else None
+    elif len(valid) == 1:
+        # 只识别到一个：靠右且 <=100 视为血量（大厅收藏角标 x>1890 排除）
+        v, x, w, h = valid[0]
+        if x > 1890 and v == 1:
+            pass  # 大厅收藏按钮角标
+        elif v <= 100 and x >= 1750:
             out["hp"] = v
-        elif abs(y - 84) < 15 and x >= 1790 and v <= 10:
-            out["level"] = v
-    out["layer"] = out["hp"]  # 临时：层数待独立锚点
+        elif v > 100 or x < 1750:
+            out["layer"] = v
     return out

@@ -25,6 +25,7 @@ import numpy as np
 
 from tft_copilot.decision.engine import DecisionEngine
 from tft_copilot.decision.snapshot import BoardSnapshot, UnitOnBoard
+from tft_copilot.decision.strategy import all_strategy_advices
 from tft_copilot.knowledge.equips_loader import load_equips
 from tft_copilot.knowledge.rules_loader import load_rules
 from tft_copilot.knowledge.traits_loader import load_traits
@@ -41,7 +42,7 @@ from tft_copilot.perception.templates import TEMPLATES_DIR, TemplateBank
 from tft_copilot.perception.units_spotter import UnitSpotter
 from tft_copilot.store.db import MatchStore
 
-NUM_KEYS = ("layer", "gold", "hp", "level")
+NUM_KEYS = ("layer", "gold", "hp", "level", "stage_major", "stage_minor")
 
 
 def load_anchors_config(patch: str = "18.6") -> dict:
@@ -87,6 +88,10 @@ class LiveCopilot:
         self._last_scene = GameScene.UNKNOWN
         self._shutdown = False
         self._hud = None
+        # v2（2026-11-20）：回合边界去重（修 6000 行写入风暴）+ 策略层
+        self._last_store_key: tuple | None = None  # (round, scene, 读数指纹)
+        self._last_adv_key: str | None = None  # 提示去重（同文本不重发）
+        self._deck_plan: tuple[str, ...] = ()  # 开局三卡预案（自动推荐）
 
     # ---------- 感知 ----------
 
@@ -106,7 +111,7 @@ class LiveCopilot:
         return self._scheduler.detect(frame)
 
     def _read_numbers(self, frame: np.ndarray) -> dict[str, int | None]:
-        """读 4 个数字：WinOCR 真机识别（5s 节流），失败降级模板匹配。"""
+        """读数字：WinOCR 真机识别（5s 节流），无有效值降级模板匹配。"""
         import time as _t
         if _t.monotonic() - self._ocr_last >= 5.0:
             try:
@@ -114,9 +119,13 @@ class LiveCopilot:
                 self._ocr_last = _t.monotonic()
             except Exception:  # noqa: BLE001 - OCR 失败走旧链路
                 self._ocr_cache = {}
-        if self._ocr_cache:
+        # OCR 有任一有效值才采用；全 None（如合成帧/OCR 失配）走模板兜底
+        if any(v is not None for v in self._ocr_cache.values()):
             return {k: self._ocr_cache.get(k) for k in NUM_KEYS}
-        return self._read_numbers_tmpl(frame)
+        tmpl = self._read_numbers_tmpl(frame)
+        if any(v is not None for v in tmpl.values()):
+            return {**{k: None for k in NUM_KEYS}, **tmpl}
+        return {k: None for k in NUM_KEYS}
 
     def _read_numbers_tmpl(self, frame: np.ndarray) -> dict[str, int | None]:
         """旧模板读数（降级链）。"""
@@ -167,6 +176,21 @@ class LiveCopilot:
         if self._match_id is None and self._store is not None:
             self._match_id = self._engine.start_match()
 
+    def _auto_deck_plan(self) -> tuple[str, ...]:
+        """开局自动推荐三卡预案（M4 推演器 Top1，一次即可）。"""
+        if self._deck_plan:
+            return self._deck_plan
+        try:
+            from tft_copilot.deck.recommender import DeckRecommender
+            from tft_copilot.knowledge.cards_loader import load_cards
+
+            res = DeckRecommender(load_cards()).recommend()
+            if res.combos:
+                self._deck_plan = tuple(c.name for c in res.combos[0].cards)
+        except Exception:  # noqa: BLE001 - 推荐失败不阻塞对局
+            self._deck_plan = ()
+        return self._deck_plan
+
     def _feed_engine(self, nums: dict, units: list[UnitOnBoard], scene: GameScene) -> list:
         self._ensure_match()
         snap = BoardSnapshot(
@@ -179,7 +203,27 @@ class LiveCopilot:
             gold=nums.get("gold"),
             level=nums.get("level"),
         )
-        return self._engine.on_round(snap)
+        advices = self._engine.on_round(snap)
+        # v2 策略层：阶段策略/经济/升级/保血/层数冲刺 + 开局预案
+        advices += all_strategy_advices(nums, scene.value, self._round_no, self._auto_deck_plan())
+        return advices
+
+    def _should_store(self, scene: GameScene, nums: dict) -> bool:
+        """落库去重：同回合同场景同读数指纹只写一次（修 6000 行风暴）。"""
+        key = (
+            self._round_no,
+            scene.value,
+            nums.get("layer"),
+            nums.get("hp"),
+            nums.get("gold"),
+            nums.get("level"),
+            nums.get("stage_major"),
+            nums.get("stage_minor"),
+        )
+        if key == self._last_store_key:
+            return False
+        self._last_store_key = key
+        return True
 
     # ---------- HUD ----------
 
@@ -194,8 +238,10 @@ class LiveCopilot:
             for a in advices:
                 self._hud.toast(a.level, a.text)
         if not self._quiet:
+            smaj, smin = nums.get("stage_major"), nums.get("stage_minor")
+            stage = f"{smaj}-{smin}" if smaj is not None else "?"
             line = (
-                f"\r[{time.strftime('%H:%M:%S')}] R{self._round_no}"
+                f"\r[{time.strftime('%H:%M:%S')}] R{self._round_no} {stage}"
                 f" 层{nums.get('layer') if nums.get('layer') is not None else '?'}"
                 f" 金{nums.get('gold') if nums.get('gold') is not None else '?'}"
                 f" 血{nums.get('hp') if nums.get('hp') is not None else '?'}"
@@ -224,9 +270,17 @@ class LiveCopilot:
             self._idle_hint(scene)
             return interval
         nums = self._read_numbers(frame)
+        # v2：读数全 None 时只做场景跟踪，不喂决策不落库（防误识别污染）
+        if all(v is None for v in nums.values()):
+            self._maybe_new_round(scene)
+            self._last_scene = scene
+            return interval
         units = self._spot_units(frame, scene)
         self._maybe_new_round(scene)
-        advices = self._feed_engine(nums, units, scene)
+        if self._should_store(scene, nums):
+            advices = self._feed_engine(nums, units, scene)
+        else:
+            advices = []  # 重复读数：不重复决策/落库，HUD 不重刷
         self._push_hud(nums, advices)
         self._last_scene = scene
         return interval

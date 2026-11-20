@@ -23,11 +23,14 @@ from tft_copilot.perception.scene import GameScene
 SCOREBOARD_ROI = (1720, 100, 200, 620)
 SHOPSTRIP_ROI = (300, 950, 1300, 100)
 TOPBANNER_ROI = (660, 0, 600, 100)
+# 大厅「开始游戏」绿钮区（2026-11-20 实测：H=116 绿色占比 64%）
+LOBBY_BTN_ROI = (1690, 950, 180, 55)
 
 # 阈值
 TH_SCOREBOARD = 15.0
 TH_SHOPSTRIP = 20.0
 TH_TOPBANNER = 55.0
+TH_LOBBY_GREEN = 0.30  # 绿色占比超 30% = 大厅
 
 
 def _gray(frame):
@@ -52,6 +55,15 @@ def sig_topbanner(frame):
     return float(_gray(frame[y:y + h, x:x + w]).std())
 
 
+def sig_lobby_button(frame):
+    """大厅「开始游戏」绿钮占比（0-1）。>0.3 = 大厅（优先级最高）。"""
+    x, y, w, h = LOBBY_BTN_ROI
+    hsv = cv2.cvtColor(frame[y:y + h, x:x + w], cv2.COLOR_BGR2HSV)
+    h_ch, s_ch, v_ch = hsv[:, :, 0], hsv[:, :, 1], hsv[:, :, 2]
+    green = (h_ch > 90) & (h_ch < 135) & (s_ch > 60) & (v_ch > 60)
+    return float(green.mean())
+
+
 def scene_signal_scores(frame):
     """返回三信号得分 dict（诊断用）。"""
     return {
@@ -64,11 +76,15 @@ def scene_signal_scores(frame):
 def detect_scene_signal(frame):
     """真机场景判定：结构信号 -> GameScene。
 
-    判定链：
+    判定链（2026-11-20 v2：大厅绿钮优先排除）：
+    0. 「开始游戏」绿钮存在 -> LOBBY（大厅道具列表会让 scoreboard 虚高到 27，
+       必须先排除，否则道具文案数字污染读数）
     1. scoreboard 强 -> 对局进行中；shopstrip 强 -> SHOP（备战可买牌）
     2. scoreboard 强 + shopstrip 弱 -> BATTLE 或 DRAFT（战斗画面商店收起）
     3. 全弱 -> UNKNOWN
     """
+    if sig_lobby_button(frame) >= TH_LOBBY_GREEN:
+        return GameScene.PRE_GAME  # 大厅：空转不喂决策层
     sb = sig_scoreboard(frame)
     if sb < TH_SCOREBOARD:
         return GameScene.UNKNOWN
